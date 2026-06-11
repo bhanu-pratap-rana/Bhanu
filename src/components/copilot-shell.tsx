@@ -8,16 +8,13 @@ import {
   Check,
   Copy,
   Cpu,
-  Database,
   Download,
   ExternalLink,
   FileText,
-  Layers3,
   Loader2,
   Mail,
   MapPin,
   RotateCcw,
-  Search,
   ShieldCheck,
   Sparkles,
   Square,
@@ -27,14 +24,15 @@ import { FormEvent, useState } from "react";
 import { GithubMark } from "@/components/github-mark";
 import { MessageBody } from "@/components/markdown";
 import { useChat } from "@/components/copilot/useChat";
+import { ProofLibrary } from "@/components/sections/ProofLibrary";
+import { ExperienceTimeline } from "@/components/sections/ExperienceTimeline";
+import { HowItWorks } from "@/components/sections/HowItWorks";
 import {
   featuredQuestions,
   impactMetrics,
   knowledgeBase,
-  portfolioProjects,
   profileSnapshot,
   techStack,
-  experienceTimeline,
   architectures,
 } from "@/lib/knowledge";
 import type { ChatMode } from "@/lib/rag";
@@ -633,149 +631,11 @@ export function CopilotShell() {
         </section>
 
         <section className="grid gap-4 border-t border-stone-200 py-6 lg:grid-cols-[1fr_0.8fr]">
-          <div>
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="font-mono text-xs uppercase tracking-[0.2em] text-stone-500">
-                  Proof Library
-                </p>
-                <h2 className="mt-1 text-xl font-semibold">Featured AI Work</h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => void ask("Show me Bhanu's strongest projects.")}
-                className="inline-flex h-9 items-center gap-2 rounded-md border border-stone-300 bg-white px-3 text-sm font-medium text-stone-800 transition hover:border-stone-400"
-              >
-                <Search size={15} aria-hidden="true" />
-                Query projects
-              </button>
-            </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {portfolioProjects.map((project) => (
-                <article
-                  key={project.name}
-                  className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-xs font-medium uppercase tracking-[0.14em] text-stone-500">
-                        {project.category}
-                      </p>
-                      <h3 className="mt-1 text-base font-semibold">
-                        {project.name}
-                      </h3>
-                    </div>
-                    <div className="flex shrink-0 flex-col items-end gap-1">
-                      <span className="rounded-md bg-stone-100 px-2 py-1 text-xs text-stone-600">
-                        {project.role}
-                      </span>
-                      {project.isPrivate && (
-                        <span className="rounded-md border border-stone-200 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-stone-600">
-                          Private
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <p className="mt-3 text-sm leading-6 text-stone-600">
-                    {project.summary}
-                  </p>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {project.stack.map((item) => (
-                      <span
-                        key={item}
-                        className="rounded-md border border-stone-200 px-2 py-1 text-xs text-stone-600"
-                      >
-                        {item}
-                      </span>
-                    ))}
-                  </div>
-                  <div className="mt-4 flex flex-wrap items-center gap-4 border-t border-stone-100 pt-3">
-                    {project.repoUrl && (
-                      <a
-                        href={project.repoUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 text-xs font-medium text-stone-700 transition hover:text-stone-950"
-                      >
-                        <GithubMark size={13} />
-                        Code
-                      </a>
-                    )}
-                    {project.demoUrl && (
-                      <a
-                        href={project.demoUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 text-xs font-medium text-stone-700 transition hover:text-stone-950"
-                      >
-                        <ExternalLink size={13} aria-hidden="true" />
-                        Live demo
-                      </a>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => void ask(`Tell me about ${project.name}.`)}
-                      className="inline-flex items-center gap-1.5 text-xs font-medium text-stone-600 transition hover:text-stone-950"
-                    >
-                      <Sparkles size={13} aria-hidden="true" />
-                      Ask copilot
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
-            <div className="flex items-center gap-2">
-              <Layers3 size={18} aria-hidden="true" />
-              <h2 className="text-sm font-semibold">Experience Timeline</h2>
-            </div>
-            <div className="mt-4 space-y-4">
-              {experienceTimeline.map((item) => (
-                <article key={`${item.org}-${item.role}`} className="relative pl-5">
-                  <span className="absolute left-0 top-1.5 h-2.5 w-2.5 rounded-full bg-stone-950" />
-                  <p className="text-sm font-semibold">{item.org}</p>
-                  <p className="mt-1 text-xs font-medium text-stone-500">
-                    {item.role} · {item.period}
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-stone-600">
-                    {item.proof}
-                  </p>
-                </article>
-              ))}
-            </div>
-          </div>
+          <ProofLibrary onAsk={ask} />
+          <ExperienceTimeline />
         </section>
 
-        <section className="grid gap-4 pb-8 md:grid-cols-3">
-          {[
-            {
-              icon: Database,
-              title: "Knowledge Base",
-              body: "Resume/profile data is normalized into structured source cards for projects, roles, research, skills, and education.",
-            },
-            {
-              icon: Search,
-              title: "Retrieval Layer",
-              body: "The API ranks relevant cards for every question and injects retrieved evidence beside the compact full-profile index.",
-            },
-            {
-              icon: ExternalLink,
-              title: "Recruiter Output",
-              body: "Answers include concrete projects, technologies, metrics, and a visible evidence panel instead of generic portfolio copy.",
-            },
-          ].map((item) => (
-            <article
-              key={item.title}
-              className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm"
-            >
-              <item.icon size={18} aria-hidden="true" />
-              <h3 className="mt-3 text-sm font-semibold">{item.title}</h3>
-              <p className="mt-2 text-sm leading-6 text-stone-600">{item.body}</p>
-            </article>
-          ))}
-        </section>
+        <HowItWorks />
       </div>
     </main>
   );
