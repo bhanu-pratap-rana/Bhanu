@@ -3,6 +3,13 @@
 :root {
   --background: #f8f7f4;
   --foreground: #171717;
+
+  /* Semantic design tokens */
+  --surface: #ffffff;
+  --surface-muted: #fbfaf8;
+  --border-subtle: #e7e5e4; /* stone-200 */
+  --ink: #0c0a09; /* stone-950 */
+  --ink-muted: #57534e; /* stone-600 */
 }
 
 @theme inline {

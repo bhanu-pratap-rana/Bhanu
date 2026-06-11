@@ -1,0 +1,14 @@
+import type { ReactNode } from "react";
+
+export function Card({
+  children,
+  className = "",
+}: Readonly<{ children: ReactNode; className?: string }>) {
+  return (
+    <section
+      className={`rounded-lg border border-stone-200 bg-white p-4 shadow-sm ${className}`}
+    >
+      {children}
+    </section>
+  );
+}
