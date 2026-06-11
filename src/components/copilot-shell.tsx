@@ -35,6 +35,7 @@ import {
   type SourceRef,
 } from "@/lib/knowledge";
 import type { ChatMode } from "@/lib/rag";
+import { prefersReducedMotion, scrollBehavior } from "@/lib/motion";
 
 type Message = {
   id: string;
@@ -187,7 +188,10 @@ export function CopilotShell() {
   }, [messages]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    messagesEndRef.current?.scrollIntoView({
+      behavior: scrollBehavior(prefersReducedMotion()),
+      block: "end",
+    });
   }, [messages, isLoading]);
 
   async function ask(question: string) {
@@ -352,7 +356,11 @@ export function CopilotShell() {
   }
 
   return (
-    <main className="min-h-dvh bg-[#f4f3ef] text-stone-950">
+    <main
+      id="main"
+      tabIndex={-1}
+      className="min-h-dvh bg-[#f4f3ef] text-stone-950 outline-none"
+    >
       <div className="mx-auto flex min-h-dvh w-full max-w-7xl flex-col px-4 py-4 sm:px-6 lg:px-8">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 py-5">
           <div>
@@ -515,7 +523,7 @@ export function CopilotShell() {
                               onClick={() =>
                                 void copyMessage(message.id, message.content)
                               }
-                              className="inline-flex items-center gap-1 rounded text-[11px] font-medium text-stone-400 transition hover:text-stone-700"
+                              className="inline-flex items-center gap-1 rounded text-[11px] font-medium text-stone-600 transition hover:text-stone-900"
                               aria-label="Copy answer"
                             >
                               {copiedId === message.id ? (
@@ -583,7 +591,7 @@ export function CopilotShell() {
                   aria-label="Ask anything about Bhanu"
                   maxLength={MAX_INPUT}
                   rows={2}
-                  className="min-h-12 flex-1 resize-none rounded-md border border-stone-300 bg-white px-3 py-3 text-base leading-5 outline-none transition placeholder:text-stone-400 focus:border-stone-500 sm:text-sm"
+                  className="min-h-12 flex-1 resize-none rounded-md border border-stone-300 bg-white px-3 py-3 text-base leading-5 outline-none transition placeholder:text-stone-500 focus:border-stone-500 sm:text-sm"
                 />
                 {isLoading ? (
                   <button
@@ -801,7 +809,7 @@ export function CopilotShell() {
                         {project.role}
                       </span>
                       {project.isPrivate && (
-                        <span className="rounded-md border border-stone-200 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-stone-400">
+                        <span className="rounded-md border border-stone-200 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-stone-600">
                           Private
                         </span>
                       )}
