@@ -25,7 +25,8 @@ function clampMessages(messages: IncomingMessage[]) {
     .slice(-8)
     .map((message) => ({
       ...message,
-      content: message.content.slice(0, 1600),
+      // Generous cap so a pasted job description (JD-fit feature) is not truncated.
+      content: message.content.slice(0, 6000),
     }));
 }
 

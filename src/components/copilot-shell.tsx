@@ -32,6 +32,7 @@ import {
   profileSnapshot,
   techStack,
   experienceTimeline,
+  architectures,
   type SourceRef,
 } from "@/lib/knowledge";
 import type { ChatMode } from "@/lib/rag";
@@ -150,6 +151,22 @@ export function CopilotShell() {
   const [isLoading, setIsLoading] = useState(false);
   const [streamingId, setStreamingId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [archKey, setArchKey] = useState(architectures[0].key);
+  const activeArch =
+    architectures.find((view) => view.key === archKey) ?? architectures[0];
+  const [showJd, setShowJd] = useState(false);
+  const [jd, setJd] = useState("");
+
+  function submitJobDescription() {
+    const trimmed = jd.trim();
+    if (!trimmed) return;
+    setShowJd(false);
+    setJd("");
+    setMode("recruiter");
+    void ask(
+      `Here is a job description. Assess how well Bhanu fits it: list strong matches (cite his real projects as evidence), partial matches, and honest gaps.\n\nJOB DESCRIPTION:\n${trimmed}`,
+    );
+  }
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -418,6 +435,28 @@ export function CopilotShell() {
           </div>
         </header>
 
+        <section
+          aria-label="Summary"
+          className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-b border-stone-200 py-3"
+        >
+          <p className="max-w-xl text-sm leading-6 text-stone-700">
+            Applied AI Engineer shipping production RAG, computer vision, and
+            FastAPI systems. Ask the copilot anything — or skim the proof below.
+          </p>
+          <div className="flex flex-wrap items-center gap-4">
+            {impactMetrics.slice(0, 4).map((metric) => (
+              <div key={metric.label} className="text-center">
+                <p className="text-base font-semibold text-stone-950">
+                  {metric.value}
+                </p>
+                <p className="text-[11px] leading-tight text-stone-600">
+                  {metric.label}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+
         <section className="grid min-h-0 flex-1 items-start gap-4 py-4 lg:grid-cols-[minmax(0,1fr)_360px]">
           <div className="flex h-[calc(100dvh-154px)] min-h-[620px] flex-col overflow-hidden rounded-lg border border-stone-200 bg-white shadow-[0_16px_50px_rgba(28,25,23,0.08)]">
             <div className="shrink-0 border-b border-stone-200 bg-white/95 px-4 py-3 backdrop-blur">
@@ -473,6 +512,26 @@ export function CopilotShell() {
                   </div>
                 ))}
               </div>
+              <p className="mt-3 text-xs text-stone-600">{modeHints[mode]}</p>
+              {mode === "recruiter" && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {[
+                    ["Why hire Bhanu?", "Why should we hire Bhanu? Be specific and evidence-based."],
+                    ["Strongest projects", "Show me Bhanu's strongest projects with the tech and impact."],
+                    ["Production experience", "What production AI systems has Bhanu shipped?"],
+                    ["Tech skills", "Summarize Bhanu's technical skills by category."],
+                  ].map(([label, prompt]) => (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => void ask(prompt)}
+                      className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 transition hover:border-stone-400 hover:text-stone-950"
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div
@@ -564,6 +623,66 @@ export function CopilotShell() {
             </div>
 
             <div className="shrink-0 border-t border-stone-200 bg-white/95 p-4 backdrop-blur">
+              <div className="mb-3 grid gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode("recruiter");
+                    void ask(
+                      "Generate 10 targeted interview questions a hiring manager could ask Bhanu, grounded in his real projects and tech.",
+                    );
+                  }}
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-stone-950 px-3 text-sm font-medium text-white transition hover:bg-stone-800"
+                >
+                  <Sparkles size={15} aria-hidden="true" />
+                  Generate interview questions
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowJd((open) => !open)}
+                  aria-expanded={showJd}
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-stone-300 bg-white px-3 text-sm font-medium text-stone-800 transition hover:border-stone-400"
+                >
+                  <FileText size={15} aria-hidden="true" />
+                  Match a job description
+                </button>
+              </div>
+              {showJd && (
+                <div className="mb-3 rounded-md border border-stone-300 bg-white p-3">
+                  <label htmlFor="jd" className="sr-only">
+                    Paste a job description
+                  </label>
+                  <textarea
+                    id="jd"
+                    value={jd}
+                    onChange={(event) => setJd(event.target.value)}
+                    maxLength={6000}
+                    rows={4}
+                    placeholder="Paste a job description — the copilot maps Bhanu's fit (strong matches, partials, honest gaps)..."
+                    className="w-full resize-none rounded-md border border-stone-200 bg-white p-2 text-sm outline-none transition placeholder:text-stone-500 focus:border-stone-500"
+                  />
+                  <div className="mt-2 flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowJd(false);
+                        setJd("");
+                      }}
+                      className="h-8 rounded-md px-3 text-xs font-medium text-stone-600 transition hover:text-stone-900"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={submitJobDescription}
+                      disabled={!jd.trim() || isLoading}
+                      className="inline-flex h-8 items-center rounded-md bg-stone-950 px-3 text-xs font-medium text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-300"
+                    >
+                      Analyze fit
+                    </button>
+                  </div>
+                </div>
+              )}
               <div className="chat-scroll mb-3 flex gap-2 overflow-x-auto pb-1">
                 {featuredQuestions.slice(0, 5).map((question) => (
                   <button
@@ -655,7 +774,7 @@ export function CopilotShell() {
               </div>
               <div className="mt-4 space-y-3">
                 {[
-                  ["Groq", "Server-side route handler, key never exposed"],
+                  ["Groq LLaMA 3.3 70B", "Streamed server-side via a route handler"],
                   ["Hybrid RAG", "Full profile index plus retrieved evidence"],
                   ["Fallback ready", "Grounded local answer path for demos"],
                 ].map(([name, detail]) => (
@@ -674,20 +793,37 @@ export function CopilotShell() {
                 <Cpu size={18} aria-hidden="true" />
                 <h2 className="text-sm font-semibold">Architecture Explorer</h2>
               </div>
-              <div className="mt-4 space-y-2">
-                {[
-                  "React Native / PWA",
-                  "FastAPI route layer",
-                  "PostgreSQL + Supabase",
-                  "Vector retrieval",
-                  "Redis + Celery workers",
-                  "Groq / OpenAI generation",
-                ].map((step, index) => (
-                  <div key={step} className="flex items-center gap-2">
-                    <span className="flex h-6 w-6 items-center justify-center rounded bg-stone-100 font-mono text-xs text-stone-500">
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {architectures.map((view) => (
+                  <button
+                    key={view.key}
+                    type="button"
+                    aria-pressed={archKey === view.key}
+                    onClick={() => setArchKey(view.key)}
+                    className={`rounded-md px-2.5 py-1 text-xs font-medium transition ${
+                      archKey === view.key
+                        ? "bg-stone-950 text-white"
+                        : "border border-stone-200 text-stone-600 hover:text-stone-900"
+                    }`}
+                  >
+                    {view.label}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-4 space-y-2.5">
+                {activeArch.steps.map((step, index) => (
+                  <div key={step.node} className="flex items-start gap-2">
+                    <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded bg-stone-100 font-mono text-xs text-stone-500">
                       {index + 1}
                     </span>
-                    <span className="text-sm text-stone-700">{step}</span>
+                    <div>
+                      <p className="text-sm font-medium text-stone-800">
+                        {step.node}
+                      </p>
+                      <p className="text-xs leading-5 text-stone-600">
+                        {step.detail}
+                      </p>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -695,12 +831,12 @@ export function CopilotShell() {
                 type="button"
                 onClick={() => {
                   setMode("architecture");
-                  void ask("Explain the Aura AI architecture.");
+                  void ask(`Explain the ${activeArch.label} architecture.`);
                 }}
                 className="mt-4 inline-flex h-9 w-full items-center justify-center gap-2 rounded-md bg-stone-950 px-3 text-sm font-medium text-white transition hover:bg-stone-800"
               >
                 <Cpu size={15} aria-hidden="true" />
-                Explore Aura AI
+                Explain {activeArch.label}
               </button>
             </section>
 

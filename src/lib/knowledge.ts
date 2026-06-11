@@ -424,6 +424,48 @@ export const portfolioProjects: PortfolioProject[] = [
   },
 ];
 
+export type ArchitectureView = {
+  key: string;
+  label: string;
+  steps: { node: string; detail: string }[];
+};
+
+export const architectures: ArchitectureView[] = [
+  {
+    key: "this-site",
+    label: "This site",
+    steps: [
+      { node: "Next.js client", detail: "React 19 chat UI, streamed render" },
+      { node: "Route handler /api/chat", detail: "Server-side, rate-limited" },
+      { node: "Hybrid retrieval", detail: "Full profile index + keyword-scored evidence" },
+      { node: "Groq LLaMA 3.3 70B", detail: "Streamed completion" },
+      { node: "Grounded fallback", detail: "Local answer if Groq is unavailable" },
+    ],
+  },
+  {
+    key: "aura-ai",
+    label: "Aura AI",
+    steps: [
+      { node: "React Native app", detail: "Mobile client" },
+      { node: "FastAPI", detail: "Service + orchestration layer" },
+      { node: "OpenCV + MediaPipe", detail: "Facial analysis, skin-tone detection" },
+      { node: "Redis + Celery", detail: "Async AI processing" },
+      { node: "GPT-4o assistant", detail: "Personalized consultation" },
+    ],
+  },
+  {
+    key: "voice-ai",
+    label: "Voice AI",
+    steps: [
+      { node: "React + Vite client", detail: "Mic capture + read-aloud" },
+      { node: "Deepgram nova-2", detail: "WebSocket streaming STT" },
+      { node: "FastAPI backend", detail: "Document parsing + orchestration" },
+      { node: "Doc RAG", detail: "PDF/DOCX retrieval context" },
+      { node: "Groq LLaMA 3.3 70B", detail: "Answers / follow-up questions" },
+    ],
+  },
+];
+
 export const experienceTimeline = [
   {
     org: "Kendriya Hindi Sansthan",

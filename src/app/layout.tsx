@@ -91,6 +91,15 @@ const personJsonLd = {
   ],
 };
 
+const websiteJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "Bhanu Copilot",
+  url: siteUrl,
+  description,
+  author: { "@type": "Person", name: profileSnapshot.name },
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -111,6 +120,10 @@ export default function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(personJsonLd) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
         />
         {children}
       </body>
