@@ -424,6 +424,32 @@ export const portfolioProjects: PortfolioProject[] = [
   },
 ];
 
+export function projectSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+const projectKnowledgeMap: Record<string, string> = {
+  "Aura AI": "aura-ai",
+  "ATAL AI 2.0": "atal-ai",
+  "Voice AI Assistant": "voice-ai-assistant",
+  "Hindi Semantic Search": "hindi-semantic-search",
+  "Smart HR Tool": "smart-hr-tool",
+  "Custom Document AI Chatbot": "custom-document-ai-chatbot",
+  "Sales Pitch Generator": "sales-pitch-generator",
+};
+
+export function getProjectBySlug(slug: string): PortfolioProject | undefined {
+  return portfolioProjects.find((project) => projectSlug(project.name) === slug);
+}
+
+export function getProjectDetail(name: string): KnowledgeItem | undefined {
+  const id = projectKnowledgeMap[name];
+  return id ? knowledgeBase.find((item) => item.id === id) : undefined;
+}
+
 export type ArchitectureView = {
   key: string;
   label: string;

@@ -1,5 +1,6 @@
+import Link from "next/link";
 import { ExternalLink, Search, Sparkles } from "lucide-react";
-import { portfolioProjects } from "@/lib/knowledge";
+import { portfolioProjects, projectSlug } from "@/lib/knowledge";
 import { GithubMark } from "@/components/github-mark";
 
 export function ProofLibrary({
@@ -34,7 +35,14 @@ export function ProofLibrary({
                 <p className="text-xs font-medium uppercase tracking-[0.14em] text-stone-500">
                   {project.category}
                 </p>
-                <h3 className="mt-1 text-base font-semibold">{project.name}</h3>
+                <h3 className="mt-1 text-base font-semibold">
+                  <Link
+                    href={`/projects/${projectSlug(project.name)}`}
+                    className="hover:underline"
+                  >
+                    {project.name}
+                  </Link>
+                </h3>
               </div>
               <div className="flex shrink-0 flex-col items-end gap-1">
                 <span className="rounded-md bg-stone-100 px-2 py-1 text-xs text-stone-600">
