@@ -263,7 +263,7 @@ export function CopilotShell() {
               {messages.map((message) => (
                 <article
                   key={message.id}
-                  className={`flex gap-3 ${
+                  className={`message-enter flex gap-3 ${
                     message.role === "user" ? "justify-end" : "justify-start"
                   }`}
                 >
