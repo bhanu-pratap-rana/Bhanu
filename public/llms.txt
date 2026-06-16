@@ -1,0 +1,27 @@
+# Bhanu Pratap Rana — Applied AI Engineer
+
+> Personal LLM Copilot — a RAG-powered AI portfolio that answers questions about Bhanu Pratap Rana's projects, experience, and skills. Bhanu is an Applied AI Engineer specializing in Generative AI, RAG systems, computer vision, FastAPI backends, and production AI automation. Based in Agra, India.
+
+## Projects
+
+- [ATAL AI 2.0](https://github.com/bhanu-pratap-rana/ATAL-AI-2.0): Offline-first digital-literacy PWA with multilingual lessons, assessments, and analytics.
+- [Voice AI Assistant](https://github.com/bhanu-pratap-rana/voice-assistant): Real-time Deepgram streaming STT with Groq LLaMA 3.3 70B that answers from uploaded documents. Live demo at https://bhanu-pratap-rana.github.io/voice-assistant/
+- [Hindi Semantic Search](https://github.com/bhanu-pratap-rana/Hindi-Books-Semantic-Search-System): Agentic cross-lingual search over 1,633 Hindi books with MiniLM embeddings, ChromaDB, and LangChain.
+- [Smart HR Tool](https://github.com/bhanu-pratap-rana/Smart-HR-Tool): Dual-model HR document generator (local Ollama + cloud Groq) on FastAPI + Streamlit.
+- [Custom Document AI Chatbot](https://github.com/bhanu-pratap-rana/Custom-Document-AI-chatbot): OCR + NER + summarization pipeline with Milvus vector search and a chatbot interface.
+- [Sales Pitch Generator](https://github.com/bhanu-pratap-rana/Sales-Pitch-generator): Turns an uploaded PDF into a tailored sales pitch with LangChain, Groq, HuggingFace embeddings, and FAISS.
+
+## Notes
+
+- Aura AI (private) — an AI beauty platform with facial analysis, skin tone detection, recommendations, and virtual try-on, built on FastAPI, Redis, Celery, PostgreSQL, and React Native.
+
+## Links
+
+- [GitHub](https://github.com/bhanu-pratap-rana)
+- [LinkedIn](https://www.linkedin.com/in/bhanu-pratap-rana/)
+- [LeetCode](https://leetcode.com/u/aaEVn94SMA/)
+- [Resume (PDF)](/bhanu-pratap-rana-resume.pdf)
+
+## Contact
+
+- Email: ranabhanu514@gmail.com
