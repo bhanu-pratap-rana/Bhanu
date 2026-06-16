@@ -10,7 +10,7 @@ export function ProofLibrary({
     <div>
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="font-mono text-xs uppercase tracking-[0.2em] text-stone-500">
+          <p className="font-mono text-xs uppercase tracking-[0.2em] text-stone-600">
             Proof Library
           </p>
           <h2 className="mt-1 text-xl font-semibold">Featured AI Work</h2>

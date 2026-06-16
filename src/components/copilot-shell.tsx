@@ -92,7 +92,7 @@ export function CopilotShell() {
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 py-5">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <p className="font-mono text-xs uppercase tracking-[0.22em] text-stone-500">
+              <p className="font-mono text-xs uppercase tracking-[0.22em] text-stone-600">
                 Bhanu Copilot v1.0
               </p>
               <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
@@ -103,7 +103,7 @@ export function CopilotShell() {
             <h1 className="mt-1 text-2xl font-semibold tracking-normal sm:text-3xl">
               Applied AI Engineer
             </h1>
-            <p className="mt-1 max-w-2xl text-sm leading-6 text-stone-500">
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-stone-600">
               GenAI, RAG, computer vision, FastAPI, and production AI automation.
             </p>
           </div>
