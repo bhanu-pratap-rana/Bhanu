@@ -5,8 +5,6 @@ import {
   Bot,
   BrainCircuit,
   BriefcaseBusiness,
-  Check,
-  Copy,
   Cpu,
   Download,
   ExternalLink,
@@ -37,19 +35,26 @@ import {
 } from "@/lib/knowledge";
 import type { ChatMode } from "@/lib/rag";
 
-const modeLabels: Record<ChatMode, string> = {
-  default: "Copilot",
-  recruiter: "Recruiter",
-  architecture: "Architecture",
-};
+type VisibleMode = { key: ChatMode; label: string; hint: string };
+
+const visibleModes: VisibleMode[] = [
+  {
+    key: "default",
+    label: "Copilot",
+    hint: "General Q&A grounded in Bhanu's profile",
+  },
+  {
+    key: "architecture",
+    label: "Architecture",
+    hint: "System design, data flow, and tech tradeoffs",
+  },
+];
+
+function modeHint(mode: ChatMode): string {
+  return visibleModes.find((item) => item.key === mode)?.hint ?? visibleModes[0].hint;
+}
 
 const MAX_INPUT = 500;
-
-const modeHints: Record<ChatMode, string> = {
-  default: "General Q&A grounded in Bhanu's profile",
-  recruiter: "Hiring signal, impact, and evidence — built for recruiters",
-  architecture: "System design, data flow, and tech tradeoffs",
-};
 
 export function CopilotShell() {
   const {
@@ -60,32 +65,17 @@ export function CopilotShell() {
     setMode,
     isLoading,
     streamingId,
-    copiedId,
     latestSources,
     inputRef,
     messagesEndRef,
     ask,
     stopGenerating,
     startNewChat,
-    copyMessage,
   } = useChat();
 
   const [archKey, setArchKey] = useState(architectures[0].key);
   const activeArch =
     architectures.find((view) => view.key === archKey) ?? architectures[0];
-  const [showJd, setShowJd] = useState(false);
-  const [jd, setJd] = useState("");
-
-  function submitJobDescription() {
-    const trimmed = jd.trim();
-    if (!trimmed) return;
-    setShowJd(false);
-    setJd("");
-    setMode("recruiter");
-    void ask(
-      `Here is a job description. Assess how well Bhanu fits it: list strong matches (cite his real projects as evidence), partial matches, and honest gaps.\n\nJOB DESCRIPTION:\n${trimmed}`,
-    );
-  }
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -187,24 +177,24 @@ export function CopilotShell() {
                   </span>
                   <div>
                     <p className="text-sm font-semibold">Bhanu Copilot</p>
-                    <p className="text-xs text-stone-500">{modeHints[mode]}</p>
+                    <p className="text-xs text-stone-500">{modeHint(mode)}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="flex rounded-md border border-stone-200 bg-stone-50 p-1">
-                    {(Object.keys(modeLabels) as ChatMode[]).map((item) => (
+                    {visibleModes.map((item) => (
                       <button
-                        key={item}
+                        key={item.key}
                         type="button"
-                        aria-pressed={mode === item}
-                        onClick={() => setMode(item)}
+                        aria-pressed={mode === item.key}
+                        onClick={() => setMode(item.key)}
                         className={`h-8 rounded px-3 text-xs font-medium transition ${
-                          mode === item
+                          mode === item.key
                             ? "bg-white text-stone-950 shadow-sm"
                             : "text-stone-500 hover:text-stone-900"
                         }`}
                       >
-                        {modeLabels[item]}
+                        {item.label}
                       </button>
                     ))}
                   </div>
@@ -232,26 +222,7 @@ export function CopilotShell() {
                   </div>
                 ))}
               </div>
-              <p className="mt-3 text-xs text-stone-600">{modeHints[mode]}</p>
-              {mode === "recruiter" && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {[
-                    ["Why hire Bhanu?", "Why should we hire Bhanu? Be specific and evidence-based."],
-                    ["Strongest projects", "Show me Bhanu's strongest projects with the tech and impact."],
-                    ["Production experience", "What production AI systems has Bhanu shipped?"],
-                    ["Tech skills", "Summarize Bhanu's technical skills by category."],
-                  ].map(([label, prompt]) => (
-                    <button
-                      key={label}
-                      type="button"
-                      onClick={() => void ask(prompt)}
-                      className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 transition hover:border-stone-400 hover:text-stone-950"
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <p className="mt-3 text-xs text-stone-600">{modeHint(mode)}</p>
             </div>
 
             <div
@@ -288,37 +259,11 @@ export function CopilotShell() {
                         <span className="copilot-caret" aria-hidden="true" />
                       )}
                     </div>
-                    {(message.provider || message.role === "assistant") && (
-                      <div className="mt-3 flex items-center justify-between gap-3 border-t border-stone-100 pt-3">
-                        {message.provider ? (
-                          <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-stone-500">
-                            {message.provider}
-                          </p>
-                        ) : (
-                          <span />
-                        )}
-                        {message.role === "assistant" &&
-                          message.content.trim() &&
-                          streamingId !== message.id && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                void copyMessage(message.id, message.content)
-                              }
-                              className="inline-flex items-center gap-1 rounded text-[11px] font-medium text-stone-600 transition hover:text-stone-900"
-                              aria-label="Copy answer"
-                            >
-                              {copiedId === message.id ? (
-                                <>
-                                  <Check size={12} aria-hidden="true" /> Copied
-                                </>
-                              ) : (
-                                <>
-                                  <Copy size={12} aria-hidden="true" /> Copy
-                                </>
-                              )}
-                            </button>
-                          )}
+                    {message.provider && (
+                      <div className="mt-3 border-t border-stone-100 pt-3">
+                        <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-stone-500">
+                          {message.provider}
+                        </p>
                       </div>
                     )}
                   </div>
@@ -346,66 +291,6 @@ export function CopilotShell() {
             </div>
 
             <div className="shrink-0 border-t border-stone-200 bg-white/95 p-4 backdrop-blur">
-              <div className="mb-3 grid gap-2 sm:grid-cols-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode("recruiter");
-                    void ask(
-                      "Generate 10 targeted interview questions a hiring manager could ask Bhanu, grounded in his real projects and tech.",
-                    );
-                  }}
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-stone-950 px-3 text-sm font-medium text-white transition hover:bg-stone-800"
-                >
-                  <Sparkles size={15} aria-hidden="true" />
-                  Generate interview questions
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowJd((open) => !open)}
-                  aria-expanded={showJd}
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-stone-300 bg-white px-3 text-sm font-medium text-stone-800 transition hover:border-stone-400"
-                >
-                  <FileText size={15} aria-hidden="true" />
-                  Match a job description
-                </button>
-              </div>
-              {showJd && (
-                <div className="mb-3 rounded-md border border-stone-300 bg-white p-3">
-                  <label htmlFor="jd" className="sr-only">
-                    Paste a job description
-                  </label>
-                  <textarea
-                    id="jd"
-                    value={jd}
-                    onChange={(event) => setJd(event.target.value)}
-                    maxLength={6000}
-                    rows={4}
-                    placeholder="Paste a job description — the copilot maps Bhanu's fit (strong matches, partials, honest gaps)..."
-                    className="w-full resize-none rounded-md border border-stone-200 bg-white p-2 text-sm outline-none transition placeholder:text-stone-500 focus:border-stone-500"
-                  />
-                  <div className="mt-2 flex justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowJd(false);
-                        setJd("");
-                      }}
-                      className="h-8 rounded-md px-3 text-xs font-medium text-stone-600 transition hover:text-stone-900"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={submitJobDescription}
-                      disabled={!jd.trim() || isLoading}
-                      className="inline-flex h-8 items-center rounded-md bg-stone-950 px-3 text-xs font-medium text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-300"
-                    >
-                      Analyze fit
-                    </button>
-                  </div>
-                </div>
-              )}
               <div className="chat-scroll mb-3 flex gap-2 overflow-x-auto pb-1">
                 {featuredQuestions.slice(0, 5).map((question) => (
                   <button

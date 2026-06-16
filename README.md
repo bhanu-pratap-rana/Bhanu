@@ -56,5 +56,5 @@ npm test        # vitest unit tests
 - `src/lib/knowledge.ts` — structured knowledge base + `SourceRef` type
 - `src/lib/rag.ts` — retrieval and prompt grounding helpers
 - `src/lib/rate-limit.ts` — in-memory per-IP rate limiter
-- `src/components/copilot-shell.tsx` — chat UI, recruiter/architecture modes, evidence panel
+- `src/components/copilot-shell.tsx` — chat UI, architecture mode, evidence panel
 - `src/app/layout.tsx` — SEO metadata + JSON-LD Person schema

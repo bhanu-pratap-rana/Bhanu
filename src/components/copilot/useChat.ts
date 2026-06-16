@@ -37,7 +37,6 @@ export function useChat() {
   const [mode, setMode] = useState<ChatMode>("default");
   const [isLoading, setIsLoading] = useState(false);
   const [streamingId, setStreamingId] = useState<string | null>(null);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -227,16 +226,6 @@ export function useChat() {
     inputRef.current?.focus();
   }
 
-  async function copyMessage(id: string, content: string) {
-    try {
-      await navigator.clipboard.writeText(content);
-      setCopiedId(id);
-      setTimeout(() => setCopiedId(null), 1500);
-    } catch {
-      /* clipboard unavailable */
-    }
-  }
-
   return {
     messages,
     input,
@@ -245,13 +234,11 @@ export function useChat() {
     setMode,
     isLoading,
     streamingId,
-    copiedId,
     latestSources,
     inputRef,
     messagesEndRef,
     ask,
     stopGenerating,
     startNewChat,
-    copyMessage,
   };
 }

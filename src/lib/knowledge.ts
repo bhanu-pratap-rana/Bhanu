@@ -185,7 +185,7 @@ export const knowledgeBase: KnowledgeItem[] = [
       "AI Automation",
       "HR Tech",
     ],
-    body: `Smart HR Tool is an AI-powered HR document generator with dual-model support: "HRCraft Mini" runs locally on Ollama (deepseek-r1:8b) and "HRCraft Pro" runs on Groq (llama-3.3-70b-versatile). The backend is FastAPI with SQLModel, Pydantic, and Alembic migrations; the frontend is Streamlit; documents export to PDF and DOCX via python-docx and xhtml2pdf. It generates job descriptions, offer letters, interview questions, onboarding plans, and performance reviews, and includes a document manager to view, export, and delete generated documents over a documented REST API. MIT licensed.`,
+    body: `Smart HR Tool is an AI-powered HR document generator with dual-model support: "HRCraft Mini" runs locally on Ollama (deepseek-r1:8b) and "HRCraft Pro" runs on Groq (llama-3.3-70b-versatile). The backend is FastAPI with SQLModel, Pydantic, and Alembic migrations; the frontend is Streamlit; documents export to PDF and DOCX via python-docx and xhtml2pdf. It generates job descriptions, offer letters, interview questions, onboarding plans, and performance reviews, and includes a document manager to view, export, and delete generated documents over a documented REST API.`,
     links: [
       {
         label: "GitHub",
@@ -232,7 +232,7 @@ export const knowledgeBase: KnowledgeItem[] = [
       "RAG",
       "GenAI",
     ],
-    body: `Sales Pitch Generator is a Streamlit application that turns an uploaded PDF into a tailored sales pitch. It ingests the document with PyPDFLoader, builds vector embeddings with HuggingFace embeddings stored in FAISS, retrieves the most relevant sections, and generates a focused pitch using Groq through LangChain. Users can enter key points to steer the output, and the app displays the source sections used to generate the pitch. MIT licensed.`,
+    body: `Sales Pitch Generator is a Streamlit application that turns an uploaded PDF into a tailored sales pitch. It ingests the document with PyPDFLoader, builds vector embeddings with HuggingFace embeddings stored in FAISS, retrieves the most relevant sections, and generates a focused pitch using Groq through LangChain. Users can enter key points to steer the output, and the app displays the source sections used to generate the pitch.`,
     links: [
       {
         label: "GitHub",
@@ -318,7 +318,7 @@ export const featuredQuestions = [
   "Show me his strongest RAG projects.",
   "How did he build the Voice AI Assistant?",
   "What production AI systems has he worked on?",
-  "Generate interview questions from his profile.",
+  "Show me his computer vision work.",
   "Explain the ATAL AI architecture.",
 ];
 
