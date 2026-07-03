@@ -280,9 +280,17 @@ export const knowledgeBase: KnowledgeItem[] = [
     kind: "experience",
     title: "Bytical.ai - Machine Learning Intern",
     summary:
-      "Computer vision, OCR, NLP, model training, deployment, and intelligent workflow automation.",
-    tags: ["OpenCV", "TensorFlow", "PyTorch", "OCR", "NLP", "Computer Vision"],
-    body: `At Bytical.ai, Bhanu contributed to AI, computer vision, and intelligent document processing solutions. He developed workflows using Python, OpenCV, TensorFlow, and PyTorch; built OCR-based document processing systems for information extraction and digitization; developed NLP pipelines for text analysis, semantic processing, and intelligent search; and assisted in model training, evaluation, deployment, and optimization for production-oriented AI products.`,
+      "OCR document pipeline (3,482 files, 95%+ accuracy), Smart HR Tool, Azure sentiment analysis, and NLP — with measurable impact.",
+    tags: [
+      "OpenCV",
+      "PyTesseract",
+      "OCR",
+      "Azure OpenAI",
+      "Streamlit",
+      "NLP",
+      "Computer Vision",
+    ],
+    body: `At Bytical.ai (Gurugram, July 2024 - December 2025), Bhanu built production-oriented AI, computer vision, and document-intelligence systems. He developed an automated document processing pipeline handling 3,482 files with 95%+ OCR accuracy and sub-second query responses using OpenCV (noise reduction, binarization, contour detection) and PyTesseract. He built an AI-powered Smart HR Tool (FastAPI + Streamlit) with job-letter, job-description, and onboarding-plan generators that reduced HR workload by 50%, improved content accuracy by 30%, and cut time-to-hire by 25%. He also created an Azure OpenAI sentiment-analysis platform processing 100 comments per minute that reduced manual review time by 70% and increased accuracy by 25%, and built NLP pipelines for text analysis, semantic processing, and intelligent search while supporting model training, evaluation, deployment, and optimization.`,
   },
   {
     id: "illinois-data-analyst",
@@ -307,16 +315,75 @@ export const knowledgeBase: KnowledgeItem[] = [
     kind: "education",
     title: "Education",
     summary:
-      "M.Tech in Computational Science, postgraduate data processing education, B.Sc. PCM, and ITI COPA.",
-    tags: ["Computational Science", "Data Processing", "Computer Science"],
-    body: `Bhanu holds a Master of Technology in Computational Science from Dayalbagh Educational Institute, completed between September 2022 and June 2024. He also completed a postgraduate degree in Data Processing and Data Processing Technology from Dayalbagh Educational Institute, a Bachelor of Science in PCM from MJPRU Bareilly, and ITI COPA in Computer Science from Government Industrial Training Institute, Bijnor.`,
+      "M.Tech in Computational Science (DEI, CGPA 8.1), PG Diploma in Big Data & Logistics, ITI COPA, and B.Sc. PCM.",
+    tags: ["Computational Science", "Big Data", "Education", "DEI"],
+    body: `Bhanu's education: Master of Technology (M.Tech) in Computational Science, Dayalbagh Educational Institute, Agra (September 2022 - June 2024), CGPA 8.1. Postgraduate Diploma in Big Data & Logistics, Dayalbagh Educational Institute, Agra (September 2021 - August 2022), CGPA 6.8. ITI in Computer Operator & Programming Assistant (COPA), Government Industrial Training Institute, Afzalgarh, Bijnor (August 2020 - 2021), CGPA 8.8. Bachelor of Science (B.Sc.) in Physics, Chemistry, and Mathematics, MJP Rohilkhand University, Bareilly (August 2017 - October 2020), CGPA 6.0.`,
+  },
+  {
+    id: "publications",
+    kind: "research",
+    title: "Publications",
+    summary:
+      "Peer-reviewed journal article and an ILA international conference book chapter on AI, creativity, and Hindi library automation.",
+    tags: [
+      "Publications",
+      "Research",
+      "RAG",
+      "Semantic Search",
+      "AI Education",
+      "Peer-reviewed",
+    ],
+    body: `Bhanu has peer-reviewed research output. (1) Kumari, S., Rana, B. P., & Tripathi, M. (2025), "Artificial Intelligence and Human Creativity: A Collaborative or Inhibitory Relationship," Shodh Bhumi, ISSN 3048-6203, Vol. 2, Issue 2, July-December 2025, pp. 672-690. (2) Rana, B. P., & Mandusia, A. K. (2026), "Transforming Hindi Library Automation: Semantic Search and AI-Enhanced Metadata," a book chapter in "Transforming Library Services in the AI Era: Library Services, User Engagement and Community Impact" — the 71st Annual ILA International Conference Proceedings (Indian Library Association, New Delhi & Swami Vivekanand Central Library, Kendriya Hindi Sansthan, Agra, Ministry of Education, Govt. of India), p. 302.`,
+  },
+  {
+    id: "conference-presentations",
+    kind: "research",
+    title: "Conference Presentations & Awards",
+    summary:
+      "Two AI-and-law conference presentations, including a Best Paper award at a national conference.",
+    tags: [
+      "Conference",
+      "Best Paper",
+      "AI and Law",
+      "Neuromorphic",
+      "Sustainability",
+      "Award",
+    ],
+    body: `Bhanu has presented award-winning conference work. (1) "Emerging AI Applications for Legal Self-Help in India" (Kumari, S., Kumar, A., & Rana, B. P.) — presented at the National Conference on the Intersection of Artificial Intelligence and Law, Amity Law School, Amity University Chhattisgarh, 20-21 August 2025; awarded Best Paper in Technical Session 8. (2) "AI, Technology & Sustainability: A Comparative Study of Neuromorphic Computing and the ATAL AI Web App" (Rana, B. P.) — presented at the 1st International Conference on AI, Law and Sustainability (ICALS), Manipal University Jaipur, 11-12 September 2025, in collaboration with Universidade Estadual do Norte do Paraná (Brazil) and Nicolaus Copernicus University (Poland).`,
+  },
+  {
+    id: "certifications",
+    kind: "skill",
+    title: "Certifications",
+    summary:
+      "Cloud and AI certifications from Oracle, AWS, University of Helsinki, Google, and others.",
+    tags: ["Certifications", "Oracle", "AWS", "AI", "Cloud"],
+    body: `Bhanu's certifications include: Oracle Cloud Infrastructure 2025 Certified AI Foundations Associate (Oracle University, 2025); AWS Cloud Practitioner Essentials (AWS Training & Certification, 2024); Generative AI Mastermind (Outskill); Elements of AI (University of Helsinki & MinnaLearn, 2020); Full Stack Web Development - Delta (Apna College); ChatGPT for Beginners (Great Learning Academy, 2024); Fundamentals of Digital Marketing (Google Digital Unlocked, 2020); Android Enterprise Associate Learning Path (Google, 2020); and Java Programming Quiz (CodeAlpha, 2024).`,
+  },
+  {
+    id: "achievements",
+    kind: "profile",
+    title: "Achievements & Recognition",
+    summary:
+      "Best Paper award, strong pilot adoption, research review, and academic honors.",
+    tags: ["Awards", "Best Paper", "Recognition", "Research"],
+    body: `Recognition includes: Best Paper Award (Technical Session 8, National Conference on the Intersection of AI and Law, Amity Law School, August 2025); 50-65% student adoption in the ATAL AI pilot across 6 rural government schools in Assam; review of 22+ research papers and contributions to an edited academic book on AI-enabled education; Best Project Showcase (Industrial Training Institute); Best Performer Student (MIET Kumaun); and Student of the Year (LIC).`,
+  },
+  {
+    id: "technical-skills",
+    kind: "skill",
+    title: "Technical Skills",
+    summary:
+      "Full stack of languages, AI/ML frameworks, GenAI/LLM, RAG, computer vision, backend, and data tooling.",
+    tags: ["Skills", "Python", "GenAI", "RAG", "Computer Vision", "FastAPI"],
+    body: `Languages: Python, JavaScript, TypeScript, SQL, Core Java, HTML5, CSS3. AI/ML frameworks: PyTorch, TensorFlow, Keras, Scikit-learn, Hugging Face Transformers, LangChain (LCEL), CrewAI. GenAI & LLM: OpenAI GPT-4o, Groq (LLaMA family), Ollama, Deepgram (STT), HuggingFace TTS, prompt engineering. RAG & vector search: ChromaDB, pgvector, Milvus, FAISS, MiniLM embeddings, semantic and hybrid retrieval. Computer vision: OpenCV, MediaPipe, PyTesseract, CNNs (VGG19, ResNet50), OCR, facial analysis. Backend & APIs: FastAPI, SQLModel, Redis, Celery, Docker, REST. Frontend: React 18/19, Next.js 16 (App Router), React Native, Vite, Tailwind CSS, Streamlit, Gradio, shadcn/ui. Databases: PostgreSQL, Supabase (Auth, Realtime, pgvector), MySQL, MongoDB, ChromaDB, Milvus. Cloud & DevOps: Docker, Vercel, Azure OpenAI, Power BI, Jupyter, Google Colab. NLP & data: spaCy, BART, TF-IDF, Pandas, NumPy, Matplotlib, Seaborn, Plotly. Spoken languages: English (professional proficiency) and Hindi (native).`,
   },
 ];
 
 export const featuredQuestions = [
   "Why should we hire Bhanu?",
   "Show me his strongest RAG projects.",
-  "How did he build the Voice AI Assistant?",
+  "What are his publications and research?",
   "What production AI systems has he worked on?",
   "Show me his computer vision work.",
   "Explain the ATAL AI architecture.",
@@ -324,9 +391,24 @@ export const featuredQuestions = [
 
 export const impactMetrics = [
   {
+    value: "2+ yrs",
+    label: "AI engineering",
+    detail: "Shipping production GenAI, RAG, and computer vision systems.",
+  },
+  {
+    value: "95%+",
+    label: "OCR accuracy",
+    detail: "Automated document pipeline over 3,482 files at Bytical.ai.",
+  },
+  {
     value: "570+",
-    label: "students studied",
+    label: "students reached",
     detail: "Assam field research across digital learning adoption.",
+  },
+  {
+    value: "50-65%",
+    label: "pilot adoption",
+    detail: "Observed during comparative digital learning pilots.",
   },
   {
     value: "6",
@@ -337,11 +419,6 @@ export const impactMetrics = [
     value: "22",
     label: "papers reviewed",
     detail: "AI-enabled education and digital empowerment research.",
-  },
-  {
-    value: "50-65%",
-    label: "pilot adoption",
-    detail: "Observed during comparative digital learning pilots.",
   },
 ];
 
@@ -464,7 +541,7 @@ export const architectures: ArchitectureView[] = [
       { node: "Next.js client", detail: "React 19 chat UI, streamed render" },
       { node: "Route handler /api/chat", detail: "Server-side, rate-limited" },
       { node: "Hybrid retrieval", detail: "Full profile index + keyword-scored evidence" },
-      { node: "Groq LLaMA 3.3 70B", detail: "Streamed completion" },
+      { node: "Groq Llama 4 Scout", detail: "Streamed completion" },
       { node: "Grounded fallback", detail: "Local answer if Groq is unavailable" },
     ],
   },
@@ -509,13 +586,19 @@ export const experienceTimeline = [
     org: "Bytical.ai",
     role: "Machine Learning Intern",
     period: "July 2024 - December 2025",
-    proof: "Computer vision, OCR, NLP, intelligent document processing, and model deployment support.",
+    proof: "OCR pipeline over 3,482 files at 95%+ accuracy, Smart HR Tool (-50% workload), and an Azure sentiment platform.",
   },
   {
     org: "testneo",
     role: "AI Engineer",
     period: "November 2024 - February 2025",
     proof: "Groq and ChromaDB powered API test generation from PDF, DOCX, OpenAPI, YAML, JSON, and TXT inputs.",
+  },
+  {
+    org: "Illinois Institute of Technology",
+    role: "Data Analyst (Intern)",
+    period: "May 2023 - July 2023",
+    proof: "Improved data integrity across 50,000+ records (+15% accuracy) and built dashboards that cut reporting time 30%.",
   },
 ];
 
@@ -530,12 +613,100 @@ export const techStack = [
   "OpenCV",
   "MediaPipe",
   "PyTorch",
-  "TensorFlow",
-  "Groq",
-  "OpenAI",
   "LangChain",
+  "Groq",
+  "OpenAI GPT-4o",
+  "CrewAI",
   "ChromaDB",
+  "pgvector",
+  "Milvus",
+  "Deepgram",
+  "spaCy",
   "React Native",
   "TypeScript",
   "Next.js",
+];
+
+export type EducationEntry = {
+  degree: string;
+  org: string;
+  period: string;
+  score: string;
+};
+
+export const educationEntries: EducationEntry[] = [
+  {
+    degree: "M.Tech — Computational Science",
+    org: "Dayalbagh Educational Institute, Agra",
+    period: "Sep 2022 – Jun 2024",
+    score: "CGPA 8.1",
+  },
+  {
+    degree: "PG Diploma — Big Data & Logistics",
+    org: "Dayalbagh Educational Institute, Agra",
+    period: "Sep 2021 – Aug 2022",
+    score: "CGPA 6.8",
+  },
+  {
+    degree: "ITI — Computer Operator & Programming Assistant (COPA)",
+    org: "Govt. Industrial Training Institute, Afzalgarh, Bijnor",
+    period: "Aug 2020 – 2021",
+    score: "CGPA 8.8",
+  },
+  {
+    degree: "B.Sc — Physics, Chemistry, Mathematics",
+    org: "MJP Rohilkhand University, Bareilly",
+    period: "Aug 2017 – Oct 2020",
+    score: "CGPA 6.0",
+  },
+];
+
+export type ResearchEntry = {
+  title: string;
+  venue: string;
+  year: string;
+  award?: boolean;
+};
+
+export const researchOutput: ResearchEntry[] = [
+  {
+    title:
+      "Transforming Hindi Library Automation: Semantic Search and AI-Enhanced Metadata",
+    venue:
+      "Book chapter — 71st Annual ILA International Conference Proceedings (Indian Library Association & KHS Agra)",
+    year: "2026",
+  },
+  {
+    title:
+      "Emerging AI Applications for Legal Self-Help in India",
+    venue:
+      "National Conference on AI & Law, Amity Law School — Best Paper, Technical Session 8",
+    year: "Aug 2025",
+    award: true,
+  },
+  {
+    title:
+      "AI, Technology & Sustainability: Neuromorphic Computing and the ATAL AI Web App",
+    venue:
+      "1st Intl. Conference on AI, Law & Sustainability (ICALS), Manipal University Jaipur",
+    year: "Sep 2025",
+  },
+  {
+    title:
+      "Artificial Intelligence and Human Creativity: A Collaborative or Inhibitory Relationship",
+    venue: "Shodh Bhumi, ISSN 3048-6203, Vol. 2, Issue 2, pp. 672–690",
+    year: "2025",
+  },
+];
+
+export const certifications = [
+  "OCI 2025 Certified AI Foundations Associate — Oracle",
+  "AWS Cloud Practitioner Essentials — AWS",
+  "Generative AI Mastermind — Outskill",
+  "Elements of AI — University of Helsinki",
+  "Full Stack Web Development (Delta) — Apna College",
+  "ChatGPT for Beginners — Great Learning",
+  "Fundamentals of Digital Marketing — Google",
+  "Android Enterprise Associate — Google",
+  "Java Programming Quiz — CodeAlpha",
 ];

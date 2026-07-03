@@ -24,6 +24,7 @@ import { MessageBody } from "@/components/markdown";
 import { useChat } from "@/components/copilot/useChat";
 import { ProofLibrary } from "@/components/sections/ProofLibrary";
 import { ExperienceTimeline } from "@/components/sections/ExperienceTimeline";
+import { Credentials } from "@/components/sections/Credentials";
 import { HowItWorks } from "@/components/sections/HowItWorks";
 import {
   featuredQuestions,
@@ -382,7 +383,7 @@ export function CopilotShell() {
               </div>
               <div className="mt-4 space-y-3">
                 {[
-                  ["Groq LLaMA 3.3 70B", "Streamed server-side via a route handler"],
+                  ["Groq Llama 4 Scout", "Streamed server-side via a route handler"],
                   ["Hybrid RAG", "Full profile index plus retrieved evidence"],
                   ["Fallback ready", "Grounded local answer path for demos"],
                 ].map(([name, detail]) => (
@@ -519,6 +520,8 @@ export function CopilotShell() {
           <ProofLibrary onAsk={ask} />
           <ExperienceTimeline />
         </section>
+
+        <Credentials />
 
         <HowItWorks />
       </div>

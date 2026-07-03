@@ -36,7 +36,7 @@ npm test        # vitest unit tests
 | Variable | Purpose |
 | --- | --- |
 | `GROQ_API_KEY` | Groq API key (server-only, never exposed to the client) |
-| `GROQ_MODEL` | Groq model id (default `llama-3.1-8b-instant`) |
+| `GROQ_MODEL` | Groq model id (default `meta-llama/llama-4-scout-17b-16e-instruct`) |
 | `NEXT_PUBLIC_SITE_URL` | Public URL for SEO metadata, OpenGraph, and canonical links |
 
 > Security: never commit a real key. `.env.local` is gitignored; `.env.example` ships placeholders only.
