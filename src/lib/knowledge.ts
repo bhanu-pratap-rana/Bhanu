@@ -70,7 +70,7 @@ export const knowledgeBase: KnowledgeItem[] = [
       "PWA",
       "Power BI",
     ],
-    body: `At Kendriya Hindi Sansthan in Agra, Bhanu contributes to AI-driven educational technology, digital empowerment initiatives, and research projects focused on rural learning outcomes. He designed and developed the ATAL AI Progressive Web Application for digital literacy, adaptive learning, and AI-enabled education. He built a multilingual semantic search library using Retrieval-Augmented Generation, vector embeddings, and LLMs. He also developed AI-powered assessment and evaluation frameworks, data pipelines, dashboards, and reporting workflows. His field research covered 6 government schools and 570+ students across Sualkuchi, Bongshar, Bamundi, Dadra, Amingaon, and Hajo in Assam. Reported pilot adoption was approximately 50-65%. Technologies include Python, FastAPI, PostgreSQL, Supabase, OpenAI, RAG, semantic search, Power BI, analytics, PWA, vector databases, and Generative AI.`,
+    body: `At Kendriya Hindi Sansthan (Ministry of Education) in Agra, Bhanu is a Research Assistant (Technical) / AI-ML Engineer on the ICSSR-funded initiative "Artificial Intelligence Based Remedial Education Model" under ATAL AI - Vision Viksit Bharat @2047. He contributes to AI-driven educational technology, digital empowerment initiatives, and research projects focused on rural learning outcomes. He designed and developed the ATAL AI Progressive Web Application for digital literacy, adaptive learning, and AI-enabled education. He built a multilingual semantic search library using Retrieval-Augmented Generation, vector embeddings, and LLMs. He also developed AI-powered assessment and evaluation frameworks, data pipelines, dashboards, and reporting workflows. His field research covered 6 government schools and 570+ students across Sualkuchi, Bongshar, Bamundi, Dadra, Amingaon, and Hajo in Assam. Reported pilot adoption was approximately 50-65%. Technologies include Python, FastAPI, PostgreSQL, Supabase, OpenAI, RAG, semantic search, Power BI, analytics, PWA, vector databases, and Generative AI.`,
   },
   {
     id: "aura-ai",
@@ -245,7 +245,7 @@ export const knowledgeBase: KnowledgeItem[] = [
     kind: "project",
     title: "AI-Powered API Test Case Generator",
     summary:
-      "Groq + ChromaDB + LangChain system that generates functional, security, and edge-case API tests from docs (built at testneo).",
+      "Groq + ChromaDB + LangChain system that generates functional, security, and edge-case API tests from docs (built at Testneo).",
     tags: [
       "Groq",
       "ChromaDB",
@@ -256,7 +256,7 @@ export const knowledgeBase: KnowledgeItem[] = [
       "OpenAPI",
       "Vector Search",
     ],
-    body: `At testneo, Bhanu built an AI-powered API Test Case Generator capable of producing functional, security, and edge-case test scenarios from API documentation and business requirements. The system ingested PDF, DOCX, OpenAPI JSON/YAML, and TXT files; used ChromaDB and semantic search for RAG; integrated Groq LLMs for test generation and validation workflows; and exported JSON, CSV, Markdown, and Python pytest formats.`,
+    body: `At Testneo, Bhanu built an AI-powered API Test Case Generator capable of producing functional, security, and edge-case test scenarios from API documentation and business requirements. The system ingested PDF, DOCX, OpenAPI JSON/YAML, and TXT files; used ChromaDB and semantic search for RAG; integrated Groq LLMs for test generation and validation workflows; and exported JSON, CSV, Markdown, and Python pytest formats.`,
   },
   {
     id: "additional-open-source",
@@ -290,7 +290,7 @@ export const knowledgeBase: KnowledgeItem[] = [
       "NLP",
       "Computer Vision",
     ],
-    body: `At Bytical.ai (Gurugram, July 2024 - December 2025), Bhanu built production-oriented AI, computer vision, and document-intelligence systems. He developed an automated document processing pipeline handling 3,482 files with 95%+ OCR accuracy and sub-second query responses using OpenCV (noise reduction, binarization, contour detection) and PyTesseract. He built an AI-powered Smart HR Tool (FastAPI + Streamlit) with job-letter, job-description, and onboarding-plan generators that reduced HR workload by 50%, improved content accuracy by 30%, and cut time-to-hire by 25%. He also created an Azure OpenAI sentiment-analysis platform processing 100 comments per minute that reduced manual review time by 70% and increased accuracy by 25%, and built NLP pipelines for text analysis, semantic processing, and intelligent search while supporting model training, evaluation, deployment, and optimization.`,
+    body: `At Bytical.ai (Gurugram, July 2024 - December 2024), Bhanu built production-oriented AI, computer vision, and document-intelligence systems. He developed an automated document processing pipeline handling 3,482 files with 95%+ OCR accuracy and sub-second query responses using OpenCV (noise reduction, binarization, contour detection) and PyTesseract. He built an AI-powered Smart HR Tool (FastAPI + Streamlit) with job-letter, job-description, and onboarding-plan generators that reduced HR workload by 50%, improved content accuracy by 30%, and cut time-to-hire by 25%. He also created an Azure OpenAI sentiment-analysis platform processing 100 comments per minute that reduced manual review time by 70% and increased accuracy by 25%, and built NLP pipelines for text analysis, semantic processing, and intelligent search while supporting model training, evaluation, deployment, and optimization.`,
   },
   {
     id: "illinois-data-analyst",
@@ -317,7 +317,7 @@ export const knowledgeBase: KnowledgeItem[] = [
     summary:
       "M.Tech in Computational Science (DEI, CGPA 8.1), PG Diploma in Big Data & Logistics, ITI COPA, and B.Sc. PCM.",
     tags: ["Computational Science", "Big Data", "Education", "DEI"],
-    body: `Bhanu's education: Master of Technology (M.Tech) in Computational Science, Dayalbagh Educational Institute, Agra (September 2022 - June 2024), CGPA 8.1. Postgraduate Diploma in Big Data & Logistics, Dayalbagh Educational Institute, Agra (September 2021 - August 2022), CGPA 6.8. ITI in Computer Operator & Programming Assistant (COPA), Government Industrial Training Institute, Afzalgarh, Bijnor (August 2020 - 2021), CGPA 8.8. Bachelor of Science (B.Sc.) in Physics, Chemistry, and Mathematics, MJP Rohilkhand University, Bareilly (August 2017 - October 2020), CGPA 6.0.`,
+    body: `Bhanu's education: Master of Technology (M.Tech) in Computational Science, Dayalbagh Educational Institute, Agra (September 2022 - June 2024), CGPA 8.1. Postgraduate Diploma in Big Data & Logistics, Dayalbagh Educational Institute, Agra (September 2021 - August 2022), CGPA 6.8. ITI in Computer Operator & Programming Assistant (COPA), Government Industrial Training Institute, Bijnor (August 2020 - 2021), CGPA 8.8. Bachelor of Science (B.Sc.) in Physics, Chemistry, and Mathematics, MJP Rohilkhand University, Bareilly (August 2017 - October 2020), CGPA 6.0.`,
   },
   {
     id: "publications",
@@ -358,7 +358,7 @@ export const knowledgeBase: KnowledgeItem[] = [
     summary:
       "Cloud and AI certifications from Oracle, AWS, University of Helsinki, Google, and others.",
     tags: ["Certifications", "Oracle", "AWS", "AI", "Cloud"],
-    body: `Bhanu's certifications include: Oracle Cloud Infrastructure 2025 Certified AI Foundations Associate (Oracle University, 2025); AWS Cloud Practitioner Essentials (AWS Training & Certification, 2024); Generative AI Mastermind (Outskill); Elements of AI (University of Helsinki & MinnaLearn, 2020); Full Stack Web Development - Delta (Apna College); ChatGPT for Beginners (Great Learning Academy, 2024); Fundamentals of Digital Marketing (Google Digital Unlocked, 2020); Android Enterprise Associate Learning Path (Google, 2020); and Java Programming Quiz (CodeAlpha, 2024).`,
+    body: `Bhanu's certifications include: Oracle Cloud Infrastructure 2025 Certified AI Foundations Associate (Oracle University, 2025); AWS Cloud Practitioner Essentials (AWS Training & Certification, 2024); Generative AI Mastermind (Outskill, 2025); Elements of AI (University of Helsinki & MinnaLearn, 2020); Full Stack Web Development - Delta (Apna College, 2025); ChatGPT for Beginners (Great Learning Academy, 2024); Fundamentals of Digital Marketing (Google Digital Unlocked, 2020); Android Enterprise Associate Learning Path (Google, 2020); and Java Programming Quiz (CodeAlpha, 2024).`,
   },
   {
     id: "achievements",
@@ -585,13 +585,13 @@ export const experienceTimeline = [
   {
     org: "Bytical.ai",
     role: "Machine Learning Intern",
-    period: "July 2024 - December 2025",
+    period: "July 2024 - December 2024",
     proof: "OCR pipeline over 3,482 files at 95%+ accuracy, Smart HR Tool (-50% workload), and an Azure sentiment platform.",
   },
   {
-    org: "testneo",
+    org: "Testneo",
     role: "AI Engineer",
-    period: "November 2024 - February 2025",
+    period: "December 2024 - February 2025",
     proof: "Groq and ChromaDB powered API test generation from PDF, DOCX, OpenAPI, YAML, JSON, and TXT inputs.",
   },
   {
@@ -649,7 +649,7 @@ export const educationEntries: EducationEntry[] = [
   },
   {
     degree: "ITI — Computer Operator & Programming Assistant (COPA)",
-    org: "Govt. Industrial Training Institute, Afzalgarh, Bijnor",
+    org: "Govt. Industrial Training Institute, Bijnor",
     period: "Aug 2020 – 2021",
     score: "CGPA 8.8",
   },
@@ -702,9 +702,9 @@ export const researchOutput: ResearchEntry[] = [
 export const certifications = [
   "OCI 2025 Certified AI Foundations Associate — Oracle",
   "AWS Cloud Practitioner Essentials — AWS",
-  "Generative AI Mastermind — Outskill",
+  "Generative AI Mastermind — Outskill (2025)",
   "Elements of AI — University of Helsinki",
-  "Full Stack Web Development (Delta) — Apna College",
+  "Full Stack Web Development (Delta) — Apna College (2025)",
   "ChatGPT for Beginners — Great Learning",
   "Fundamentals of Digital Marketing — Google",
   "Android Enterprise Associate — Google",
