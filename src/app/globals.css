@@ -1,111 +1,750 @@
 @import "tailwindcss";
 
-:root {
-  --background: #f8f7f4;
-  --foreground: #171717;
-
-  /* Semantic design tokens */
-  --surface: #ffffff;
-  --surface-muted: #fbfaf8;
-  --border-subtle: #e7e5e4; /* stone-200 */
-  --ink: #0c0a09; /* stone-950 */
-  --ink-muted: #57534e; /* stone-600 */
-}
-
+/* Colour is by role. `accent` has one meaning on this site: the copilot
+   touched this (a note it would pull, pulled, or cited). Links and ordinary
+   actions are ink, so the accent never competes with itself. */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-ground: var(--ground);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --color-wash: var(--wash);
+  --color-hairline: var(--hairline);
+  --color-control: var(--control);
+  --color-danger: var(--danger);
+  --font-sans:
+    var(--font-anek-latin), var(--font-anek-deva), ui-sans-serif, system-ui,
+    sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+@layer base {
+  /* Night is the default: the 3D core reads best on it. Light is a choice
+     the visitor makes with the toggle, and is remembered. */
+  :root {
+    color-scheme: dark;
+    --ground: #0a1024;
+    --surface: #111a33;
+    --ink: #eaeffb;
+    --muted: #a3aec8;
+    /* Marigold: the copilot touched this. */
+    --accent: #f5a524;
+    --on-accent: #1a1203;
+    --hairline: #233056;
+    --control: #5f6c90;
+    --danger: #ff8a70;
+    --wash: color-mix(in oklab, var(--accent) 10%, var(--surface));
+    --scene-body: #0f1838;
+    --scene-edge: #4d5f98;
+    --scene-mist: #bcd2ff;
+    --scene-add: 1;
+    --scene-accent: #f5a524;
+    --backdrop:
+      radial-gradient(70vw 60vh at 72% 14%, #1b2b63 0%, transparent 68%),
+      radial-gradient(60vw 50vh at 0% 100%, #121b40 0%, transparent 70%);
+    --copilot-w: 0px;
+  }
+
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --ground: #eef1f8;
+    --surface: #fbfcff;
+    --ink: #0c1430;
+    --muted: #48526c;
+    --accent: #a15c00;
+    --on-accent: #ffffff;
+    --hairline: #d4dae8;
+    --control: #7a85a0;
+    --danger: #a8321c;
+    --wash: color-mix(in oklab, var(--accent) 8%, var(--surface));
+    --scene-body: #dfe5f3;
+    --scene-edge: #6a7aa8;
+    --scene-mist: #1f3f94;
+    --scene-add: 0;
+    /* Text accent stays dark for contrast; the light in the core is brighter. */
+    --scene-accent: #e8900c;
+    --backdrop:
+      radial-gradient(70vw 60vh at 72% 14%, #d6e0fa 0%, transparent 68%),
+      radial-gradient(60vw 50vh at 0% 100%, #e2e7f4 0%, transparent 70%);
+  }
+
+  html {
+    background: var(--ground);
+    scroll-padding-top: 1.5rem;
+    scroll-padding-bottom: 6rem;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--ground);
+    position: relative;
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 17px;
+    line-height: 1.55;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* The night sky behind everything, under the 3D core. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: var(--backdrop);
+    pointer-events: none;
+  }
+
+  /* Devanagari needs more leading than Latin, and is never tracked or
+     upper-cased: either would break the headline bar that joins its letters. */
+  :lang(hi) {
+    line-height: 1.75;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  a,
+  button,
+  textarea,
+  summary {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--accent) 35%, transparent);
+  }
+
+  html:has(dialog.copilot-dialog[open]) {
+    overflow: hidden;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-delay: 0s !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      transition-delay: 0s !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
 
-button,
-a,
-textarea {
-  -webkit-tap-highlight-color: transparent;
+/* Ordinary link: ink with a quiet underline that firms up on hover. */
+@utility link {
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--control);
+  @media (hover: hover) {
+    &:hover {
+      text-decoration-color: var(--ink);
+    }
+  }
 }
 
-:focus-visible {
-  outline: 2px solid #0c0a09;
-  outline-offset: 2px;
-  border-radius: 6px;
+/* Minimum comfortable touch target. Text links only need the height; icon-only
+   buttons add the width too. */
+@utility tap {
+  min-height: 44px;
 }
 
-@keyframes copilot-caret {
-  0%,
-  100% {
+@utility tap-square {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Condensed display cut of the text face. */
+@utility display {
+  font-stretch: 80%;
+  font-weight: 750;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+}
+
+@layer components {
+  /* ---------- Page frame ------------------------------------------------ */
+
+  .shell {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 100dvh;
+  }
+
+  @media (min-width: 64rem) {
+    .shell {
+      grid-template-columns: minmax(0, 1fr) 360px;
+    }
+  }
+
+  @media (min-width: 80rem) {
+    .shell {
+      grid-template-columns: minmax(0, 1fr) 420px;
+    }
+  }
+
+  .page {
+    min-width: 0;
+    padding-inline: max(1rem, env(safe-area-inset-left))
+      max(1rem, env(safe-area-inset-right));
+  }
+
+  @media (min-width: 40rem) and (max-width: 63.99rem) {
+    .page {
+      padding-inline: 2rem;
+    }
+  }
+
+  .measure {
+    width: 100%;
+    max-width: 46rem;
+    margin-inline: auto;
+  }
+
+  .section {
+    padding-top: 4rem;
+    scroll-margin-top: 1rem;
+  }
+
+  @media (min-width: 64rem) {
+    .section {
+      padding-top: 6rem;
+    }
+  }
+
+  .section-title {
+    font-size: clamp(32px, 6vw, 46px);
+    font-stretch: 78%;
+    font-weight: 750;
+    line-height: 1;
+    letter-spacing: -0.01em;
+    margin-bottom: 1.75rem;
+  }
+
+  /* A section reached from the copilot or the nav announces itself once,
+     then settles. In-page links focus their target (it has tabindex="-1"),
+     which is what the client router can do; :target covers direct loads. */
+  .section:target,
+  li[id]:target,
+  .section:focus,
+  li[id]:focus,
+  p[id]:focus {
+    animation: target-flash 1.6s ease-out 1;
+    outline: none;
+  }
+
+  @keyframes target-flash {
+    from {
+      background: color-mix(in oklab, var(--accent) 16%, transparent);
+      box-shadow: 0 0 0 0.75rem
+        color-mix(in oklab, var(--accent) 16%, transparent);
+    }
+    to {
+      background: transparent;
+      box-shadow: 0 0 0 0.75rem transparent;
+    }
+  }
+
+  /* ---------- Hero ------------------------------------------------------ */
+
+  /* The 3D core is drawn on a fixed canvas behind the page. The hero leaves
+     it a stage: a band above the name on phones, the upper right on laptops. */
+  .hero {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .hero-stage {
+    height: clamp(170px, 28svh, 320px);
+  }
+
+  /* Short phones (iPhone SE): a smaller stage keeps the ask field above the fold. */
+  @media (max-width: 63.99rem) and (max-height: 720px) {
+    .hero-stage {
+      height: clamp(120px, 20svh, 170px);
+    }
+  }
+
+  .hero-copy {
+    position: relative;
+    container-type: inline-size;
+    /* Keeps type legible where it crosses the core. */
+    text-shadow: 0 1px 18px var(--ground), 0 0 2px var(--ground);
+  }
+
+  @media (min-width: 64rem) {
+    .hero {
+      min-height: calc(100svh - 4.75rem);
+      justify-content: flex-end;
+      padding-bottom: 2.5rem;
+    }
+
+    .hero-stage {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 56%;
+      height: 56%;
+    }
+  }
+
+  /* Short laptop screens: drop the status line so the core has room above the name. */
+  @media (min-width: 64rem) and (max-height: 820px) {
+    .hero-status {
+      display: none;
+    }
+  }
+
+  /* Two scripts, one size: the Latin name and its Devanagari twin. The size
+     follows the column so the Latin line fills the measure without wrapping. */
+  .lockup {
+    font-size: min(88px, 11.4cqi);
+  }
+
+  .lockup-latin {
+    font-stretch: 76%;
+    font-weight: 780;
+    line-height: 0.92;
+    letter-spacing: -0.015em;
+    white-space: nowrap;
+  }
+
+  .lockup-deva {
+    font-family: var(--font-anek-deva), var(--font-anek-latin), sans-serif;
+    font-stretch: 85%;
+    font-weight: 650;
+    font-size: 0.9em;
+    line-height: 1.25;
+    white-space: nowrap;
+    color: color-mix(in oklab, var(--ink) 58%, var(--ground));
+  }
+
+  .hero-statement {
+    margin-top: 1rem;
+    max-width: 40rem;
+    font-size: 19px;
+    font-weight: 500;
+    line-height: 1.32;
+    text-wrap: pretty;
+  }
+
+  @media (min-width: 48rem) {
+    .hero-statement {
+      font-size: 23px;
+    }
+  }
+
+  @media (min-width: 64rem) {
+    .hero-statement {
+      margin-top: 1.5rem;
+      font-size: 25px;
+      line-height: 1.28;
+    }
+  }
+
+  /* The live readout: what the core is lighting, and why. */
+  .hero-live {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+  }
+
+  /* A fixed height, so the demo changing question never moves what is
+     below it (the ask field sits right under this on phones). */
+  .hero-live-line {
+    --lines: 3;
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    gap: 0.6rem;
+    align-items: baseline;
+    height: calc(var(--lines) * 1.4em);
+    overflow: hidden;
+    font-size: 15px;
+    line-height: 1.4;
+  }
+
+  /* Narrow phones: the longest starter plus its count needs a fourth line. */
+  @media (max-width: 40rem) {
+    .hero-live-line {
+      --lines: 4;
+    }
+  }
+
+  .hero-live-line :lang(hi) {
+    line-height: inherit;
+  }
+
+  .hero-live-text {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: var(--lines);
+    line-clamp: var(--lines);
+    overflow: hidden;
+  }
+
+  @media (min-width: 64rem) {
+    .hero-live-line {
+      --lines: 2;
+      font-size: 16px;
+    }
+  }
+
+  .hero-live-mark {
+    flex: none;
+    width: 0.8em;
+    height: 0.8em;
+    translate: 0 0.08em;
+    clip-path: polygon(25% 6%, 75% 6%, 100% 50%, 75% 94%, 25% 94%, 0 50%);
+    background: var(--control);
+  }
+
+  .hero-live-mark[data-lit="true"] {
+    background: var(--accent);
+    animation: live-pulse 2.4s ease-in-out infinite;
+  }
+
+  .hero-live-mark[data-still="true"] {
+    animation: none;
+  }
+
+  @media (forced-colors: active) {
+    .hero-live-mark {
+      background: CanvasText;
+      forced-color-adjust: none;
+    }
+  }
+
+  .hero-live-text {
+    animation: live-in 0.45s ease-out;
+  }
+
+  @keyframes live-pulse {
+    50% {
+      opacity: 0.45;
+    }
+  }
+
+  @keyframes live-in {
+    from {
+      opacity: 0;
+      translate: 0 0.3em;
+    }
+  }
+
+  /* ---------- 3D core ---------------------------------------------------- */
+
+  /* 100lvh: the layer keeps one height while phone toolbars slide, so the
+     drawing buffer is not reallocated mid-scroll. */
+  .core-layer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    height: 100lvh;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  @media (forced-colors: active) {
+    .core-layer,
+    .core-tip {
+      display: none;
+    }
+  }
+
+  .core-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    transition: opacity 1.4s ease-out;
+  }
+
+  .core-canvas[data-ready="true"] {
     opacity: 1;
   }
-  50% {
-    opacity: 0;
+
+  .core-hover [data-core-hit] {
+    cursor: pointer;
+  }
+
+  .core-tip {
+    position: fixed;
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    translate: 16px 16px;
+    max-width: 18rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--hairline);
+    border-radius: 8px;
+    background: color-mix(in oklab, var(--surface) 90%, transparent);
+    font-size: 14px;
+    line-height: 1.35;
+    pointer-events: none;
+  }
+
+  /* ---------- Copilot --------------------------------------------------- */
+
+  .copilot-aside {
+    display: none;
+  }
+
+  @media (min-width: 64rem) {
+    .copilot-aside {
+      display: flex;
+      position: sticky;
+      top: 0;
+      height: 100dvh;
+      /* In a short window the panel keeps its minimum height and the column
+         scrolls, so the field is always reachable. */
+      overflow-y: auto;
+      border-left: 1px solid var(--hairline);
+      /* Nearly opaque: a live blur over an animating canvas costs a frame's
+         worth of GPU time for almost no visible difference. */
+      background: color-mix(in oklab, var(--surface) 92%, transparent);
+    }
+  }
+
+  dialog.copilot-dialog {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: var(--surface);
+    color: var(--ink);
+  }
+
+  dialog.copilot-dialog:not([open]) {
+    display: none;
+  }
+
+  dialog.copilot-dialog[open] {
+    display: flex;
+    animation: sheet-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  @keyframes sheet-in {
+    from {
+      opacity: 0;
+      translate: 0 1.5rem;
+    }
+  }
+
+  .copilot-panel {
+    display: grid;
+    /* The thread never collapses to nothing (landscape phones, 200% zoom);
+       the host scrolls instead. */
+    grid-template-rows: auto minmax(12rem, 1fr) auto;
+    width: 100%;
+    min-height: 0;
+    font-size: 16px;
+  }
+
+  /* On tablets the dialog would otherwise stretch the text edge to edge. */
+  dialog.copilot-dialog .copilot-panel {
+    max-width: 36rem;
+    margin-inline: auto;
+  }
+
+  .thread {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--hairline) transparent;
+  }
+
+  /* The one moving rule on the site: it runs while an answer is on its way. */
+  .stream-bar {
+    height: 2px;
+    background: var(--hairline);
+    overflow: hidden;
+  }
+
+  .stream-bar[data-active="true"]::after {
+    content: "";
+    display: block;
+    height: 100%;
+    width: 40%;
+    background: var(--accent);
+    animation: stream-run 1.1s ease-in-out infinite;
+  }
+
+  @keyframes stream-run {
+    from {
+      translate: -100% 0;
+    }
+    to {
+      translate: 250% 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .stream-bar[data-active="true"]::after {
+      width: 100%;
+      animation: none;
+    }
+  }
+
+  .caret {
+    display: inline-block;
+    width: 2px;
+    height: 1em;
+    margin-left: 2px;
+    vertical-align: text-bottom;
+    background: var(--accent);
+    animation: caret-blink 1s steps(2, start) infinite;
+  }
+
+  @keyframes caret-blink {
+    50% {
+      opacity: 0;
+    }
+  }
+
+  /* ---------- Index lattice --------------------------------------------- */
+
+  .lattice {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 30dvh;
+    overflow: visible;
+  }
+
+  .cell {
+    fill: transparent;
+    stroke: var(--control);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+    transition:
+      fill 0.15s ease-out,
+      stroke 0.15s ease-out;
+  }
+
+  .cell-hit {
+    cursor: pointer;
+  }
+
+  /* Three steps, not a ramp: a faint match must still be visible outdoors. */
+  .cell[data-level="1"] {
+    fill: color-mix(in oklab, var(--accent) 30%, var(--surface));
+  }
+  .cell[data-level="2"] {
+    fill: color-mix(in oklab, var(--accent) 55%, var(--surface));
+  }
+  .cell[data-level="3"] {
+    fill: color-mix(in oklab, var(--accent) 80%, var(--surface));
+  }
+
+  .cell[data-level="1"],
+  .cell[data-level="2"],
+  .cell[data-level="3"] {
+    stroke: var(--accent);
+  }
+
+  .cell[data-pulled="true"] {
+    stroke: var(--accent);
+    stroke-width: 2;
+  }
+
+  .cell[data-cited="true"] {
+    fill: var(--accent);
+    stroke: var(--accent);
+  }
+
+  .cell[data-selected="true"] {
+    stroke: var(--ink);
+    stroke-width: 2.5;
+  }
+
+  .cell-num {
+    fill: var(--on-accent);
+    font-size: 13px;
+    font-weight: 600;
+    text-anchor: middle;
+    dominant-baseline: central;
+    pointer-events: none;
+  }
+
+  @media (hover: hover) {
+    .cell-hit:hover .cell {
+      stroke: var(--ink);
+      stroke-width: 2;
+    }
+  }
+
+  @media (forced-colors: active) {
+    .cell {
+      stroke: CanvasText;
+    }
+    .cell[data-level="1"],
+    .cell[data-level="2"],
+    .cell[data-level="3"],
+    .cell[data-cited="true"] {
+      fill: Highlight;
+    }
+    .cell-num {
+      fill: HighlightText;
+    }
+  }
+
+  /* Citation marker inside an answer: the same mark as a cited cell. */
+  .cite {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.3rem;
+    height: 1.3rem;
+    margin-inline: 2px;
+    padding-inline: 0.25rem;
+    border-radius: 5px;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1;
+    vertical-align: 0.1em;
+    font-stretch: 100%;
+    letter-spacing: 0;
+  }
+
+  button.cite {
+    cursor: pointer;
   }
 }
 
-@keyframes message-enter {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+/* Theme toggle: show the icon for the theme you would switch to. Night is
+   the default, so the sun shows unless the visitor chose light. */
+.theme-icon-light {
+  display: none;
 }
-
-.message-enter {
-  animation: message-enter 0.22s ease-out both;
+:root[data-theme="light"] .theme-icon-light {
+  display: block;
 }
-
-.copilot-caret {
-  display: inline-block;
-  width: 2px;
-  height: 1em;
-  margin-left: 1px;
-  vertical-align: text-bottom;
-  background: currentColor;
-  animation: copilot-caret 1s steps(2, start) infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-}
-
-.chat-scroll {
-  scrollbar-color: #d6d3d1 transparent;
-  scrollbar-width: thin;
-}
-
-.chat-scroll::-webkit-scrollbar {
-  height: 10px;
-  width: 10px;
-}
-
-.chat-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.chat-scroll::-webkit-scrollbar-thumb {
-  background: #d6d3d1;
-  border: 3px solid transparent;
-  border-radius: 999px;
-  background-clip: content-box;
-}
-
-.chat-scroll::-webkit-scrollbar-thumb:hover {
-  background: #a8a29e;
-  border: 3px solid transparent;
-  background-clip: content-box;
+:root[data-theme="light"] .theme-icon-dark {
+  display: none;
 }

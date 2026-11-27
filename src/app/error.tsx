@@ -2,18 +2,22 @@
 
 export default function Error({ reset }: { error: Error; reset: () => void }) {
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-[#f4f3ef] px-6 text-center text-stone-800">
-      <h1 className="text-xl font-semibold">Something went wrong</h1>
-      <p className="max-w-md text-sm text-stone-600">
-        The copilot hit an unexpected error. Try again — your conversation is
-        saved.
+    <main
+      id="main"
+      tabIndex={-1}
+      className="measure flex min-h-[60dvh] flex-col items-start justify-center gap-4 outline-none"
+    >
+      <h1 className="display text-[36px]">This page failed to load</h1>
+      <p className="text-muted">
+        Something broke while drawing it. Reload to try again. Any conversation
+        with the copilot is saved in this browser.
       </p>
       <button
         type="button"
         onClick={reset}
-        className="inline-flex h-10 items-center rounded-md bg-stone-950 px-4 text-sm font-medium text-white transition hover:bg-stone-800"
+        className="tap inline-flex items-center rounded-md bg-ink px-4 font-medium text-ground"
       >
-        Reload
+        Reload the page
       </button>
     </main>
   );

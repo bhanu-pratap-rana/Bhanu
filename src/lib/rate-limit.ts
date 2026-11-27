@@ -38,16 +38,20 @@ function sweep(now: number) {
   }
 }
 
-export function rateLimit(key: string, now = Date.now()): RateLimitResult {
+export function rateLimit(
+  key: string,
+  now = Date.now(),
+  max = MAX_REQUESTS,
+): RateLimitResult {
   const existing = buckets.get(key);
 
   if (!existing || now >= existing.resetAt) {
     sweep(now);
     buckets.set(key, { count: 1, resetAt: now + WINDOW_MS });
-    return { allowed: true, remaining: MAX_REQUESTS - 1, retryAfterSeconds: 0 };
+    return { allowed: true, remaining: max - 1, retryAfterSeconds: 0 };
   }
 
-  if (existing.count >= MAX_REQUESTS) {
+  if (existing.count >= max) {
     return {
       allowed: false,
       remaining: 0,
@@ -58,18 +62,30 @@ export function rateLimit(key: string, now = Date.now()): RateLimitResult {
   existing.count += 1;
   return {
     allowed: true,
-    remaining: MAX_REQUESTS - existing.count,
+    remaining: max - existing.count,
     retryAfterSeconds: 0,
   };
 }
 
-export function clientKey(request: Request): string {
-  // Prefer the edge-injected header (Vercel overwrites this with the real
-  // client IP and it cannot be spoofed by the caller). Fall back to the
-  // leftmost X-Forwarded-For only for local/dev where no trusted proxy exists.
-  const trusted = request.headers.get("x-vercel-forwarded-for");
-  if (trusted) return trusted.split(",")[0]?.trim() || "anonymous";
+export function clientKey(
+  request: Request,
+  options: { onVercel?: boolean } = {},
+): string {
+  const onVercel = options.onVercel ?? process.env.VERCEL === "1";
+  const first = (value: string | null) =>
+    value?.split(",")[0]?.trim() || undefined;
+  const last = (value: string | null) =>
+    value?.split(",").at(-1)?.trim() || undefined;
 
-  const forwarded = request.headers.get("x-forwarded-for");
-  return forwarded?.split(",")[0]?.trim() || "anonymous";
+  // On Vercel the edge overwrites both headers with the real client IP.
+  if (onVercel) {
+    return (
+      first(request.headers.get("x-vercel-forwarded-for")) ??
+      first(request.headers.get("x-forwarded-for")) ??
+      "anonymous"
+    );
+  }
+  // Anywhere else these headers are caller-supplied. The rightmost hop is the
+  // one the nearest proxy appended, so it is the only part worth trusting.
+  return last(request.headers.get("x-forwarded-for")) ?? "anonymous";
 }

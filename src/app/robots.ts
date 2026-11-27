@@ -1,11 +1,10 @@
 import type { MetadataRoute } from "next";
-
-const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL ?? "https://bhanu-copilot.vercel.app";
+import { siteUrl } from "@/lib/site";
 
 export default function robots(): MetadataRoute.Robots {
   return {
-    rules: { userAgent: "*", allow: "/", disallow: "/api/" },
+    // Shared question links (`/?q=…`) are the same page; keep them out of the index.
+    rules: { userAgent: "*", allow: "/", disallow: ["/api/", "/*?q="] },
     sitemap: `${siteUrl}/sitemap.xml`,
     host: siteUrl,
   };

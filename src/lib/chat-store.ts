@@ -1,0 +1,518 @@
+// The copilot's state lives in one small external store rather than React
+// context state, so that (a) any button on the page can ask a question without
+// re-rendering on every streamed token, and (b) the reducer logic is testable
+// without a DOM. Components read slices through useSyncExternalStore.
+
+import { countCitations, stripCitations, tidySpaces } from "../components/markdown";
+import {
+  ASSISTANT_CHARS,
+  EARLIER_USER_CHARS,
+  parseChatRequest,
+} from "./chat-request";
+import {
+  getKnowledgeItem,
+  jobDescriptionPrompt,
+  knowledgeBase,
+  profile,
+} from "./knowledge";
+import { retrieve, type ChatMode, type Expansion } from "./rag";
+
+export type ChatMessage = {
+  id: string;
+  role: "user" | "assistant";
+  /** `notice` is site copy (errors, stops). It is never sent to the model. */
+  kind: "question" | "answer" | "notice";
+  content: string;
+  /** Ids of the notes given to the model, in citation order. */
+  sources?: string[];
+  scores?: Record<string, number>;
+  matched?: Record<string, string[]>;
+  expansions?: Expansion[];
+  reusedPrevious?: boolean;
+  /** Raw X-Provider value; absent until the server has answered. */
+  provider?: string;
+  stopped?: boolean;
+  firstTextMs?: number;
+  totalMs?: number;
+};
+
+export type ChatStatus = "idle" | "retrieving" | "streaming";
+
+export type ChatState = {
+  messages: ChatMessage[];
+  status: ChatStatus;
+  streamingId: string | null;
+  draft: string;
+  /** A starter question being pointed at; previews its retrieval. */
+  preview: string | null;
+  /** Whether the phone dialog is open. Ignored on wide screens. */
+  open: boolean;
+  /** Incremented to ask the composer to take focus. */
+  focusRequest: number;
+  /** Text for the single polite live region. */
+  announcement: string;
+};
+
+export const EMPTY_CHAT_STATE: ChatState = {
+  messages: [],
+  status: "idle",
+  streamingId: null,
+  draft: "",
+  preview: null,
+  open: false,
+  focusRequest: 0,
+  announcement: "",
+};
+
+export const STORAGE_KEY = "bhanu-copilot:v2";
+/** Longest question a shared `?q=` link carries. */
+export const DEEP_LINK_MAX = 300;
+export const NOTE_COUNT = knowledgeBase.length;
+/** Longer questions (a pasted job description) are never written to storage. */
+const PERSIST_MAX_CHARS = 1000;
+const HISTORY_LIMIT = 6;
+
+type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+
+export type ChatStoreDeps = {
+  fetch?: typeof fetch;
+  storage?: () => StorageLike | undefined;
+  now?: () => number;
+  schedule?: (flush: () => void) => void;
+  newId?: () => string;
+};
+
+const KINDS = new Set(["question", "answer", "notice"]);
+
+/** Accepts only well-formed messages; drops anything else silently. */
+export function reviveMessages(raw: unknown): ChatMessage[] {
+  if (!raw || typeof raw !== "object") return [];
+  const data = raw as { v?: unknown; messages?: unknown };
+  if (data.v !== 2 || !Array.isArray(data.messages)) return [];
+
+  const revived: ChatMessage[] = [];
+  for (const entry of data.messages) {
+    if (!entry || typeof entry !== "object") continue;
+    const message = entry as Partial<ChatMessage>;
+    if (
+      typeof message.id !== "string" ||
+      typeof message.content !== "string" ||
+      (message.role !== "user" && message.role !== "assistant") ||
+      typeof message.kind !== "string" ||
+      !KINDS.has(message.kind) ||
+      message.kind === "notice"
+    ) {
+      continue;
+    }
+    revived.push({
+      id: message.id,
+      role: message.role,
+      kind: message.kind,
+      content: message.content,
+      sources: knownIds(message.sources),
+      provider:
+        typeof message.provider === "string" ? message.provider : undefined,
+      stopped: message.stopped === true ? true : undefined,
+    });
+  }
+  // A thread must start with a question and never end on one.
+  while (revived.length && revived[0].role !== "user") revived.shift();
+  while (revived.length && revived[revived.length - 1].role === "user") {
+    revived.pop();
+  }
+  return revived;
+}
+
+/**
+ * Citations point at sources by position, so a list with an unknown id (from
+ * an older or newer deploy) is dropped whole rather than compacted: shifting
+ * the positions would point every later citation at the wrong note.
+ */
+function knownIds(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const ids = value.filter((id): id is string => typeof id === "string");
+  if (ids.length !== value.length) return undefined;
+  return ids.every((id) => getKnowledgeItem(id)) ? ids : undefined;
+}
+
+const JD_PREFIX = jobDescriptionPrompt.trimEnd();
+
+/** What is safe to keep: finished answers, and nothing after a long paste. */
+export function persistableMessages(messages: ChatMessage[]): ChatMessage[] {
+  const kept: ChatMessage[] = [];
+  for (const message of messages) {
+    if (message.kind === "notice") continue;
+    if (
+      message.role === "user" &&
+      (message.content.length > PERSIST_MAX_CHARS ||
+        message.content.startsWith(JD_PREFIX))
+    ) {
+      break;
+    }
+    kept.push(message);
+  }
+  while (kept.length && kept[kept.length - 1].role === "user") kept.pop();
+  return kept;
+}
+
+/** The turns the model should see: real questions and real answers only. */
+export function historyFor(messages: ChatMessage[]) {
+  return messages
+    .filter((message) => message.kind !== "notice" && message.content.trim())
+    .slice(-HISTORY_LIMIT)
+    .map(({ role, content }) => ({
+      role,
+      // Mirror the server's budget so long earlier turns never push the
+      // request over its size limit.
+      content: content.slice(
+        0,
+        role === "user" ? EARLIER_USER_CHARS : ASSISTANT_CHARS,
+      ),
+    }));
+}
+
+/**
+ * The user messages the server will retrieve over for this request: the same
+ * six-turn window, clipped the same way. The live preview uses this too, so
+ * what the index shows is what the model is given.
+ */
+export function windowedQuestions(
+  messages: ChatMessage[],
+  next: string,
+): string[] {
+  const parsed = parseChatRequest({
+    messages: [...historyFor(messages), { role: "user", content: next }],
+  });
+  return parsed.ok ? parsed.userMessages : [next];
+}
+
+function parseSourceIds(header: string | null): string[] | undefined {
+  if (!header) return undefined;
+  try {
+    const parsed = JSON.parse(decodeURIComponent(header)) as { id?: unknown }[];
+    if (!Array.isArray(parsed)) return undefined;
+    return knownIds(parsed.map((entry) => entry?.id));
+  } catch {
+    return undefined;
+  }
+}
+
+function parseScores(header: string | null): Record<string, number> | undefined {
+  if (!header) return undefined;
+  const scores: Record<string, number> = {};
+  for (const pair of header.split(",")) {
+    const cut = pair.lastIndexOf(":");
+    if (cut <= 0) continue;
+    const score = Number(pair.slice(cut + 1));
+    if (Number.isFinite(score)) scores[pair.slice(0, cut).trim()] = score;
+  }
+  return Object.keys(scores).length ? scores : undefined;
+}
+
+async function readError(response: Response): Promise<string> {
+  const text = await response.text().catch(() => "");
+  try {
+    const parsed = JSON.parse(text) as { error?: unknown };
+    if (typeof parsed.error === "string" && parsed.error) return parsed.error;
+  } catch {
+    /* not JSON */
+  }
+  if (response.status === 429) {
+    return "Too many questions in a short time. Wait a minute and ask again.";
+  }
+  return `The copilot could not answer that. Try again, or email ${profile.email}.`;
+}
+
+export function createChatStore(deps: ChatStoreDeps = {}) {
+  const now = deps.now ?? (() => Date.now());
+  const newId =
+    deps.newId ??
+    (() =>
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `m-${now()}-${Math.random().toString(36).slice(2)}`);
+  const schedule =
+    deps.schedule ??
+    ((flush: () => void) => {
+      if (typeof requestAnimationFrame === "function") {
+        requestAnimationFrame(flush);
+      } else {
+        flush();
+      }
+    });
+  const storage =
+    deps.storage ??
+    (() => {
+      try {
+        return typeof localStorage === "undefined" ? undefined : localStorage;
+      } catch {
+        return undefined;
+      }
+    });
+
+  let state: ChatState = EMPTY_CHAT_STATE;
+  const listeners = new Set<() => void>();
+  let controller: AbortController | null = null;
+  let restored = false;
+  // Bumped by every ask and every reset: a run that is no longer current must
+  // not write into the thread that replaced it.
+  let run = 0;
+
+  function set(patch: Partial<ChatState>) {
+    state = { ...state, ...patch };
+    for (const listener of listeners) listener();
+  }
+
+  function patchMessage(id: string, patch: Partial<ChatMessage>) {
+    set({
+      messages: state.messages.map((message) =>
+        message.id === id ? { ...message, ...patch } : message,
+      ),
+    });
+  }
+
+  function persist() {
+    const store = storage();
+    if (!store) return;
+    try {
+      const messages = persistableMessages(state.messages);
+      if (messages.length === 0) store.removeItem(STORAGE_KEY);
+      else store.setItem(STORAGE_KEY, JSON.stringify({ v: 2, messages }));
+    } catch {
+      /* quota or privacy mode: the thread simply is not kept */
+    }
+  }
+
+  /** Reads a saved thread once, after hydration, so markup always matches. */
+  function restore() {
+    if (restored) return;
+    restored = true;
+    const store = storage();
+    if (!store) return;
+    try {
+      const saved = store.getItem(STORAGE_KEY);
+      if (!saved) return;
+      const messages = reviveMessages(JSON.parse(saved));
+      if (messages.length && state.messages.length === 0) set({ messages });
+    } catch {
+      /* unreadable: start fresh */
+    }
+  }
+
+  function fail(assistantId: string, content: string) {
+    set({
+      messages: state.messages.map((message) =>
+        message.id === assistantId
+          ? { id: message.id, role: "assistant", kind: "notice", content }
+          : message,
+      ),
+      // The notice itself is an alert; announcing it here too would say it twice.
+      announcement: "",
+    });
+  }
+
+  async function ask(question: string, options: { mode?: ChatMode } = {}) {
+    const trimmed = question.trim();
+    if (!trimmed) return;
+    if (state.status !== "idle") {
+      // Keep it for the visitor to send once the current answer is done.
+      set({ draft: trimmed, focusRequest: state.focusRequest + 1 });
+      return;
+    }
+    const mine = ++run;
+
+    const history = [
+      ...historyFor(state.messages),
+      { role: "user" as const, content: trimmed },
+    ].slice(-HISTORY_LIMIT);
+
+    // Retrieval runs here too, with the same function the server uses over
+    // the same window, so the notes appear at once instead of waiting for the
+    // first byte.
+    const local = retrieve({
+      userMessages: windowedQuestions(state.messages, trimmed),
+    });
+    const assistantId = newId();
+    const startedAt = now();
+
+    set({
+      messages: [
+        ...state.messages,
+        { id: newId(), role: "user", kind: "question", content: trimmed },
+        {
+          id: assistantId,
+          role: "assistant",
+          kind: "answer",
+          content: "",
+          sources: local.ranked.map(({ item }) => item.id),
+          scores: Object.fromEntries(
+            local.ranked.map(({ item, score }) => [item.id, score]),
+          ),
+          matched: Object.fromEntries(
+            local.ranked.map(({ item, matched }) => [item.id, matched]),
+          ),
+          expansions: local.expansions,
+          reusedPrevious: local.reusedPrevious,
+        },
+      ],
+      status: "retrieving",
+      streamingId: assistantId,
+      draft: "",
+      preview: null,
+      announcement:
+        local.ranked.length > 0
+          ? `Pulled ${local.ranked.length} of ${NOTE_COUNT} notes.`
+          : "No note matches those keywords.",
+    });
+
+    controller = new AbortController();
+    let buffer = "";
+    let flushQueued = false;
+    const flush = () => {
+      flushQueued = false;
+      if (state.streamingId !== assistantId) return;
+      patchMessage(assistantId, { content: tidySpaces(buffer) });
+    };
+
+    try {
+      const response = await (deps.fetch ?? fetch)("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          mode: options.mode ?? "default",
+          messages: history,
+        }),
+      });
+
+      if (!response.ok || !response.body) {
+        const error = await readError(response);
+        if (mine === run) fail(assistantId, error);
+        return;
+      }
+
+      // The server's list is the truth about what the model was given.
+      const serverSources = parseSourceIds(response.headers.get("x-sources"));
+      const serverScores = parseScores(response.headers.get("x-retrieval"));
+      const localIds = local.ranked.map(({ item }) => item.id).join(",");
+      const differs = serverSources !== undefined && serverSources.join(",") !== localIds;
+      patchMessage(assistantId, {
+        provider: response.headers.get("x-provider") ?? undefined,
+        ...(serverSources ? { sources: serverSources } : {}),
+        ...(serverScores ? { scores: serverScores } : {}),
+        reusedPrevious:
+          response.headers.get("x-retrieval-note") === "reused-previous",
+        // Local match details describe a different list; do not show them.
+        ...(differs ? { matched: undefined, expansions: undefined } : {}),
+      });
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let first = true;
+
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (value) {
+          buffer += decoder.decode(value, { stream: true });
+          if (first && buffer.trim()) {
+            first = false;
+            set({ status: "streaming" });
+            patchMessage(assistantId, { firstTextMs: now() - startedAt });
+          }
+          if (!flushQueued) {
+            flushQueued = true;
+            schedule(flush);
+          }
+        }
+        if (done) break;
+      }
+      buffer += decoder.decode();
+
+      const content = tidySpaces(buffer.trim());
+      if (!content) {
+        fail(assistantId, "The model returned no text. Ask again.");
+        return;
+      }
+      const sourceCount =
+        state.messages.find((message) => message.id === assistantId)?.sources
+          ?.length ?? 0;
+      patchMessage(assistantId, { content, totalMs: now() - startedAt });
+      const { cited } = countCitations(content, sourceCount);
+      set({
+        announcement: `Answer, citing ${cited.length} of ${sourceCount} notes: ${stripCitations(content).slice(0, 700)}`,
+      });
+    } catch (error) {
+      if (mine !== run) return;
+      const aborted =
+        typeof DOMException !== "undefined" &&
+        error instanceof DOMException &&
+        error.name === "AbortError";
+      if (aborted && buffer.trim()) {
+        patchMessage(assistantId, { content: tidySpaces(buffer.trim()), stopped: true });
+        set({ announcement: "Stopped." });
+      } else if (aborted) {
+        fail(assistantId, "Stopped before any text arrived.");
+      } else {
+        fail(
+          assistantId,
+          `The copilot could not be reached. Check your connection and ask again, or email ${profile.email}.`,
+        );
+      }
+    } finally {
+      if (mine === run) {
+        controller = null;
+        set({ status: "idle", streamingId: null });
+        persist();
+      }
+    }
+  }
+
+  return {
+    getState: () => state,
+    subscribe(listener: () => void) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    restore,
+    ask,
+    stop() {
+      controller?.abort();
+    },
+    reset() {
+      run += 1;
+      controller?.abort();
+      controller = null;
+      set({ ...EMPTY_CHAT_STATE, open: state.open });
+      try {
+        storage()?.removeItem(STORAGE_KEY);
+      } catch {
+        /* nothing to clear */
+      }
+    },
+    setDraft(draft: string) {
+      if (draft !== state.draft) set({ draft });
+    },
+    setPreview(preview: string | null) {
+      if (preview !== state.preview) set({ preview });
+    },
+    /** Opens the phone dialog. `focus` also asks the composer to take focus. */
+    open(options: { focus?: boolean } = {}) {
+      set({
+        open: true,
+        focusRequest: options.focus
+          ? state.focusRequest + 1
+          : state.focusRequest,
+      });
+    },
+    close() {
+      if (state.open) set({ open: false });
+    },
+    requestFocus() {
+      set({ focusRequest: state.focusRequest + 1 });
+    },
+  };
+}
+
+export type ChatStore = ReturnType<typeof createChatStore>;

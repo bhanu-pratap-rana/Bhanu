@@ -19,4 +19,4 @@ jobs:
       - run: npm test
       - run: npm run build
         env:
-          NEXT_PUBLIC_SITE_URL: https://bhanu-copilot.vercel.app
+          NEXT_PUBLIC_SITE_URL: https://bhanu-xi.vercel.app

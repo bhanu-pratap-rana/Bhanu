@@ -1,3 +1,10 @@
+// Everything in this file is public: it is rendered on the page, shipped to the
+// browser for the live index, and given to the model. Private details (phone
+// number, personal alternate email) must never be added here.
+//
+// Source of truth is the résumé PDF in /public. Facts that come from a public
+// repository README instead are marked with `basis: "repo"`.
+
 export type KnowledgeKind =
   | "profile"
   | "experience"
@@ -6,6 +13,28 @@ export type KnowledgeKind =
   | "education"
   | "research";
 
+/** Where a card's facts come from, shown beside every citation. */
+export type Basis = "resume" | "resume+repo" | "repo" | "publication" | "site";
+
+export const basisLabel: Record<Basis, string> = {
+  resume: "From his résumé",
+  "resume+repo": "From his résumé and the public repository",
+  repo: "From the public repository",
+  publication: "From the published citation",
+  site: "About this site",
+};
+
+export const kindLabel: Record<KnowledgeKind, string> = {
+  profile: "Profile",
+  experience: "Experience",
+  project: "Project",
+  skill: "Skills",
+  education: "Background",
+  research: "Research",
+};
+
+export type KnowledgeLink = { label: string; href: string };
+
 export type KnowledgeItem = {
   id: string;
   kind: KnowledgeKind;
@@ -13,700 +42,878 @@ export type KnowledgeItem = {
   summary: string;
   tags: string[];
   body: string;
-  links?: { label: string; href: string }[];
+  links?: KnowledgeLink[];
+  /** id of the element on the home page this card describes. */
+  anchor: string;
+  /** A natural question a visitor could ask about this card. */
+  prompt: string;
+  /** Extra words a visitor might use for this card (query synonyms). */
+  aliases?: string[];
+  basis: Basis;
 };
 
 // Minimal shape sent to the client (kept small enough to travel in a header).
 export type SourceRef = Pick<KnowledgeItem, "id" | "title" | "summary">;
 
-export const profileSnapshot = {
+const GITHUB = "https://github.com/bhanu-pratap-rana";
+
+export const profile = {
   name: "Bhanu Pratap Rana",
-  title:
-    "Applied AI Engineer specializing in GenAI, Computer Vision, RAG, FastAPI, and AI automation",
+  nameHindi: "भानु प्रताप राणा",
+  title: "Applied AI Engineer",
+  focus: ["GenAI", "RAG", "AI Agents", "Computer Vision", "FastAPI"],
   location: "Agra, Uttar Pradesh, India",
   email: "ranabhanu514@gmail.com",
-  altEmail: "bhanuprataprana2202062@dei.ac.in",
-  phone: "8979016694",
   linkedin: "https://www.linkedin.com/in/bhanu-pratap-rana/",
-  github: "https://github.com/bhanu-pratap-rana",
-  leetcode: "https://leetcode.com/u/aaEVn94SMA/",
+  github: GITHUB,
   resumePath: "/bhanu-pratap-rana-resume.pdf",
+  // Hero copy. Every number here is on the résumé.
+  statement:
+    "I build AI that works in Indian languages: semantic search over 1,633 Hindi books, and a Hindi and Assamese learning app piloted with 570+ students in six Assam schools.",
+  status:
+    "Applied AI Engineer in Agra, working across RAG, AI agents and computer vision. Research Assistant (Technical) and AI/ML Engineer at Kendriya Hindi Sansthan since March 2025, and co-founder of Aura AI and Media.",
+} as const;
+
+/* ------------------------------------------------------------------ */
+/* Experience — résumé order, résumé wording                           */
+/* ------------------------------------------------------------------ */
+
+export type ExperienceEntry = {
+  id: string;
+  title: string;
+  org: string;
+  period: string;
+  /** Full-time / Part-time / Internship */
+  type: string;
+  place: string;
+  context?: string;
+  bullets: string[];
+  stack: string[];
+  kbId: string;
 };
 
-export const knowledgeBase: KnowledgeItem[] = [
+export const experience: ExperienceEntry[] = [
   {
-    id: "profile-summary",
-    kind: "profile",
-    title: "Profile Summary",
-    summary:
-      "Applied AI Engineer building production-grade GenAI, RAG, computer vision, automation, and full-stack AI products.",
-    tags: [
-      "GenAI",
-      "RAG",
-      "Computer Vision",
-      "FastAPI",
-      "AI Automation",
-      "Full-stack AI",
+    id: "experience-khs",
+    title: "Research Assistant (Technical) — AI/ML Engineer",
+    org: "Kendriya Hindi Sansthan (Ministry of Education)",
+    period: "Mar 2025 – Present",
+    type: "Full-time",
+    place: "Agra, Uttar Pradesh",
+    context:
+      "ICSSR-funded “AI Based Remedial Education Model” under ATAL AI — Vision Viksit Bharat @2047",
+    bullets: [
+      "Architected and built ATAL AI 2.0, an offline-first PWA (Next.js 16, React 19, TypeScript, Supabase/pgvector) with Hindi and Assamese curriculum, pre/post assessments, gamification, a voice AI tutor (ai4bharat indic-parler-tts), teacher dashboards with CSV analytics and OTP-based role access.",
+      "Built a multilingual Hindi Semantic Search engine over 1,633 books: MiniLM-L12-v2 embeddings in ChromaDB (HNSW cosine), LangChain LCEL RAG Q&A with Groq LLaMA, and a CrewAI multi-agent metadata pipeline (description generator, category classifier, quality validator).",
+      "Led field research across 6 government schools in Assam covering 570+ students, achieving 50–65% student adoption in pilot comparisons against existing digital learning platforms.",
+      "Built data pipelines and Power BI dashboards for stakeholder reporting; reviewed 22 research papers and contributed to an edited book on AI-enabled education.",
     ],
-    body: `Bhanu Pratap Rana is an Applied AI Engineer focused on Generative AI, Computer Vision, RAG systems, AI automation, and scalable AI platform development. He builds with Python, FastAPI, OpenCV, PyTorch, PostgreSQL, Redis, Docker, Supabase, and modern AI infrastructure. His work spans automation platforms, OCR and document intelligence, semantic search engines, multilingual AI applications, and real-time AI products. Much of his work is open-source on GitHub (github.com/bhanu-pratap-rana), spanning RAG, voice AI, document intelligence, automation, and classical ML. He is open to remote AI engineering roles, startup collaborations, AI product development, and GenAI projects.`,
-    links: [
-      { label: "GitHub", href: profileSnapshot.github },
-      { label: "LinkedIn", href: profileSnapshot.linkedin },
-      { label: "Resume", href: profileSnapshot.resumePath },
-    ],
-  },
-  {
-    id: "khs-research-assistant",
-    kind: "experience",
-    title: "Kendriya Hindi Sansthan - Research Assistant",
-    summary:
-      "AI-driven education, digital empowerment, ATAL AI, semantic search, assessments, field studies, and research reporting.",
-    tags: [
-      "KHS",
-      "ATAL AI",
-      "RAG",
-      "Semantic Search",
-      "Education",
-      "PWA",
-      "Power BI",
-    ],
-    body: `At Kendriya Hindi Sansthan (Ministry of Education) in Agra, Bhanu is a Research Assistant (Technical) / AI-ML Engineer on the ICSSR-funded initiative "Artificial Intelligence Based Remedial Education Model" under ATAL AI - Vision Viksit Bharat @2047. He contributes to AI-driven educational technology, digital empowerment initiatives, and research projects focused on rural learning outcomes. He designed and developed the ATAL AI Progressive Web Application for digital literacy, adaptive learning, and AI-enabled education. He built a multilingual semantic search library using Retrieval-Augmented Generation, vector embeddings, and LLMs. He also developed AI-powered assessment and evaluation frameworks, data pipelines, dashboards, and reporting workflows. His field research covered 6 government schools and 570+ students across Sualkuchi, Bongshar, Bamundi, Dadra, Amingaon, and Hajo in Assam. Reported pilot adoption was approximately 50-65%. Technologies include Python, FastAPI, PostgreSQL, Supabase, OpenAI, RAG, semantic search, Power BI, analytics, PWA, vector databases, and Generative AI.`,
-  },
-  {
-    id: "aura-ai",
-    kind: "project",
-    title: "Aura AI",
-    summary:
-      "Production-grade AI beauty platform for makeup recommendations, facial analysis, and virtual try-on (private, in active development).",
-    tags: [
-      "FastAPI",
-      "Redis",
-      "Celery",
-      "PostgreSQL",
-      "React Native",
-      "OpenCV",
-      "MediaPipe",
-      "GPT-4o",
-      "Computer Vision",
-    ],
-    body: `Aura AI is an AI-powered beauty technology platform for personalized makeup recommendations, facial analysis, and real-time virtual try-on. Bhanu leads the AI architecture using FastAPI, PostgreSQL, Redis, Celery, Docker, and React Native. He developed computer vision pipelines with MediaPipe and OpenCV for facial analysis, skin tone detection, and recommendations. The platform integrates a GPT-4o-powered AI beauty assistant for personalized consultations, asynchronous AI processing pipelines, containerized deployment workflows, and multilingual mobile experiences. The repository is private and the product is in active development.`,
-  },
-  {
-    id: "atal-ai",
-    kind: "project",
-    title: "ATAL AI 2.0",
-    summary:
-      "Offline-first digital-literacy and adaptive-learning PWA built on Next.js 16, React 19, and Supabase with multilingual content and a voice AI tutor.",
-    tags: [
-      "Next.js",
-      "React",
+    stack: [
+      "Next.js 16",
+      "React 19",
       "TypeScript",
       "Supabase",
       "pgvector",
-      "PWA",
-      "Offline-first",
-      "TTS",
-      "Education",
-    ],
-    body: `ATAL AI 2.0 is a digital-literacy and adaptive-learning Progressive Web App built with Next.js 16 (App Router, Turbopack), React 19, TypeScript, Tailwind CSS 4, shadcn/ui, and Framer Motion, backed by Supabase (PostgreSQL, Auth, Realtime, pgvector). It is offline-first using IndexedDB (Dexie), service workers, and a background sync queue. Features include an interactive multilingual curriculum (Hindi, Assamese) with markdown lessons, pre/post assessments with i18n, a teacher class-management dashboard with invite/QR codes and CSV analytics export, OTP email auth with role-based access control, gamification (points, badges, leaderboards), and a voice AI tutor using HuggingFace multilingual TTS (ai4bharat/indic-parler-tts). End-to-end tested with Playwright.`,
-    links: [
-      {
-        label: "GitHub",
-        href: "https://github.com/bhanu-pratap-rana/ATAL-AI-2.0",
-      },
-    ],
-  },
-  {
-    id: "voice-ai-assistant",
-    kind: "project",
-    title: "Voice AI Assistant",
-    summary:
-      "Real-time voice assistant: Deepgram streaming STT + Groq LLaMA 3.3 70B that suggests follow-ups or answers from uploaded documents (RAG).",
-    tags: [
-      "Deepgram",
-      "Groq",
-      "LLaMA 3.3 70B",
-      "FastAPI",
-      "React",
-      "Vite",
-      "RAG",
-      "Realtime",
-      "Voice AI",
-    ],
-    body: `The Voice AI Assistant streams microphone audio to Deepgram nova-2 over WebSockets for live speech-to-text, then uses Groq LLaMA 3.3 70B Versatile to either suggest follow-up questions (5 per transcript) or answer questions grounded in uploaded PDF/DOCX/TXT documents via retrieval-augmented generation. The frontend is React 18 + Vite 6 + Tailwind v4; the backend is FastAPI + Python with PyPDF2 and python-docx for document parsing, and the browser SpeechSynthesis API for read-aloud. It offers two modes: Suggest Questions and Answer Questions. A frontend UI demo is hosted on GitHub Pages (full functionality needs the backend running locally).`,
-    links: [
-      {
-        label: "GitHub",
-        href: "https://github.com/bhanu-pratap-rana/voice-assistant",
-      },
-      {
-        label: "Live demo",
-        href: "https://bhanu-pratap-rana.github.io/voice-assistant/",
-      },
-    ],
-  },
-  {
-    id: "hindi-semantic-search",
-    kind: "project",
-    title: "Hindi Books Semantic Search System",
-    summary:
-      "Agentic cross-lingual semantic search over 1,633 Hindi books using MiniLM embeddings, ChromaDB, LangChain RAG, and a CrewAI metadata pipeline.",
-    tags: [
-      "Embeddings",
       "ChromaDB",
-      "LangChain",
+      "LangChain LCEL",
+      "Groq",
       "CrewAI",
-      "Groq",
-      "Streamlit",
-      "RAG",
-      "Hindi",
-      "Vector Search",
+      "Power BI",
     ],
-    body: `An agentic semantic search engine over 1,633 Hindi books that enables cross-lingual (Hindi and English) natural-language book discovery. It embeds content with paraphrase-multilingual-MiniLM-L12-v2 (384-dim) stored in ChromaDB (HNSW, cosine), alongside a TF-IDF keyword baseline for side-by-side comparison. RAG-based Q&A is built with LangChain (LCEL) and Groq llama-3.1-8b-instant. A CrewAI multi-agent pipeline enriches metadata with a description generator, a category classifier, and a quality validator. The UI is built in Streamlit; data is sourced from the Google Books and Open Library APIs, with relevance scoring and CSV export.`,
-    links: [
-      {
-        label: "GitHub",
-        href: "https://github.com/bhanu-pratap-rana/Hindi-Books-Semantic-Search-System",
-      },
-    ],
+    kbId: "khs-research-assistant",
   },
   {
-    id: "smart-hr-tool",
-    kind: "project",
-    title: "Smart HR Tool",
-    summary:
-      "AI HR document generator with dual models — local Ollama (deepseek-r1) and cloud Groq (LLaMA 3.3 70B) — on FastAPI + Streamlit with PDF/DOCX export.",
-    tags: [
+    id: "experience-aura",
+    title: "Co-Founder",
+    org: "Aura AI and Media",
+    period: "Dec 2025 – Present",
+    type: "Part-time",
+    place: "Remote",
+    context:
+      "AI-first beauty technology and media venture (production platform in active development)",
+    bullets: [
+      "Designed the end-to-end architecture of an asynchronous AI beauty platform on FastAPI, PostgreSQL, Redis, Celery, Docker and React Native.",
+      "Built computer vision pipelines with MediaPipe and OpenCV for real-time facial analysis, skin-tone detection and personalized makeup recommendation.",
+      "Integrated GPT-4o as an AI beauty assistant for personalized consultations and product recommendations.",
+      "Implemented containerized async processing (Celery + Redis) for production-scale workloads, and multilingual React Native apps for international markets.",
+    ],
+    stack: [
       "FastAPI",
-      "SQLModel",
-      "Ollama",
-      "Groq",
-      "Streamlit",
-      "AI Automation",
-      "HR Tech",
-    ],
-    body: `Smart HR Tool is an AI-powered HR document generator with dual-model support: "HRCraft Mini" runs locally on Ollama (deepseek-r1:8b) and "HRCraft Pro" runs on Groq (llama-3.3-70b-versatile). The backend is FastAPI with SQLModel, Pydantic, and Alembic migrations; the frontend is Streamlit; documents export to PDF and DOCX via python-docx and xhtml2pdf. It generates job descriptions, offer letters, interview questions, onboarding plans, and performance reviews, and includes a document manager to view, export, and delete generated documents over a documented REST API.`,
-    links: [
-      {
-        label: "GitHub",
-        href: "https://github.com/bhanu-pratap-rana/Smart-HR-Tool",
-      },
-    ],
-  },
-  {
-    id: "custom-document-ai-chatbot",
-    kind: "project",
-    title: "Custom Document AI Chatbot (OCR)",
-    summary:
-      "Document-intelligence system combining Tesseract OCR, spaCy NER, and BART summarization with Milvus vector search and a chatbot interface.",
-    tags: [
-      "OCR",
-      "Tesseract",
-      "spaCy",
-      "BART",
-      "Milvus",
-      "MySQL",
-      "NLP",
-      "Document Intelligence",
-    ],
-    body: `A document-intelligence system that combines Tesseract OCR for text extraction, spaCy named-entity recognition (en_core_web_sm), and BART summarization, with Milvus vector search and a MySQL store, served through an interactive chatbot interface. It extracts text from document images, runs entity recognition and summarization, and supports semantic retrieval over the processed corpus. Milvus runs via docker-compose, and the project includes a synthetic ticket dataset generator for testing.`,
-    links: [
-      {
-        label: "GitHub",
-        href: "https://github.com/bhanu-pratap-rana/Custom-Document-AI-chatbot",
-      },
-    ],
-  },
-  {
-    id: "sales-pitch-generator",
-    kind: "project",
-    title: "Sales Pitch Generator",
-    summary:
-      "Streamlit app that turns an uploaded PDF into a tailored sales pitch using LangChain, Groq, HuggingFace embeddings, and FAISS retrieval.",
-    tags: [
-      "Streamlit",
-      "LangChain",
-      "Groq",
-      "FAISS",
-      "Embeddings",
-      "RAG",
-      "GenAI",
-    ],
-    body: `Sales Pitch Generator is a Streamlit application that turns an uploaded PDF into a tailored sales pitch. It ingests the document with PyPDFLoader, builds vector embeddings with HuggingFace embeddings stored in FAISS, retrieves the most relevant sections, and generates a focused pitch using Groq through LangChain. Users can enter key points to steer the output, and the app displays the source sections used to generate the pitch.`,
-    links: [
-      {
-        label: "GitHub",
-        href: "https://github.com/bhanu-pratap-rana/Sales-Pitch-generator",
-      },
-    ],
-  },
-  {
-    id: "testneo-api-generator",
-    kind: "project",
-    title: "AI-Powered API Test Case Generator",
-    summary:
-      "Groq + ChromaDB + LangChain system that generates functional, security, and edge-case API tests from docs (built at Testneo).",
-    tags: [
-      "Groq",
-      "ChromaDB",
-      "LangChain",
-      "FastAPI",
-      "Streamlit",
-      "RAG",
-      "OpenAPI",
-      "Vector Search",
-    ],
-    body: `At Testneo, Bhanu built an AI-powered API Test Case Generator capable of producing functional, security, and edge-case test scenarios from API documentation and business requirements. The system ingested PDF, DOCX, OpenAPI JSON/YAML, and TXT files; used ChromaDB and semantic search for RAG; integrated Groq LLMs for test generation and validation workflows; and exported JSON, CSV, Markdown, and Python pytest formats.`,
-  },
-  {
-    id: "additional-open-source",
-    kind: "project",
-    title: "Additional Open-Source Work",
-    summary:
-      "Public GitHub work spanning automation, classical ML, and computer vision beyond the featured AI products.",
-    tags: [
-      "Azure OpenAI",
-      "LangChain",
-      "Automation",
-      "Machine Learning",
-      "Computer Vision",
-      "Trading",
-    ],
-    body: `Beyond his featured AI products, Bhanu's public GitHub includes Azure OpenAI sentiment analysis with LangChain, Google Sheets automation with the Groq API, a trading-strategy backtester, eye-image classification with VGG19 and ResNet50, a prompt-perfect generator, and an interactive code editor. Together these show breadth across GenAI, AI automation, classical machine learning, and computer vision.`,
-    links: [{ label: "GitHub", href: profileSnapshot.github }],
-  },
-  {
-    id: "bytical-ai",
-    kind: "experience",
-    title: "Bytical.ai - Machine Learning Intern",
-    summary:
-      "OCR document pipeline (3,482 files, 95%+ accuracy), Smart HR Tool, Azure sentiment analysis, and NLP — with measurable impact.",
-    tags: [
+      "PostgreSQL",
+      "Redis",
+      "Celery",
+      "Docker",
+      "React Native",
+      "MediaPipe",
       "OpenCV",
-      "PyTesseract",
-      "OCR",
-      "Azure OpenAI",
-      "Streamlit",
-      "NLP",
-      "Computer Vision",
+      "GPT-4o",
     ],
-    body: `At Bytical.ai (Gurugram, July 2024 - December 2024), Bhanu built production-oriented AI, computer vision, and document-intelligence systems. He developed an automated document processing pipeline handling 3,482 files with 95%+ OCR accuracy and sub-second query responses using OpenCV (noise reduction, binarization, contour detection) and PyTesseract. He built an AI-powered Smart HR Tool (FastAPI + Streamlit) with job-letter, job-description, and onboarding-plan generators that reduced HR workload by 50%, improved content accuracy by 30%, and cut time-to-hire by 25%. He also created an Azure OpenAI sentiment-analysis platform processing 100 comments per minute that reduced manual review time by 70% and increased accuracy by 25%, and built NLP pipelines for text analysis, semantic processing, and intelligent search while supporting model training, evaluation, deployment, and optimization.`,
+    kbId: "aura-ai",
   },
   {
-    id: "illinois-data-analyst",
-    kind: "experience",
-    title: "Illinois Institute of Technology - Data Analyst",
-    summary:
-      "Data cleaning, dashboarding, reporting improvements, and process optimization across 50,000+ records.",
-    tags: ["Data Analytics", "Dashboards", "Data Cleaning", "Reporting"],
-    body: `At Illinois Institute of Technology, Bhanu enhanced data integrity for over 50,000 records, increasing accuracy by 15% through cleaning techniques. He developed interactive dashboards that reduced reporting time by 30% and proposed process improvements that increased data processing efficiency by 20%.`,
-  },
-  {
-    id: "research-education",
-    kind: "research",
-    title: "AI Education Research and Field Studies",
-    summary:
-      "Reviewed 22 research papers and supported an edited academic book on AI-enabled education and digital empowerment.",
-    tags: ["Research", "AI Education", "Field Study", "Policy", "Digital Empowerment"],
-    body: `Bhanu contributed to the review and evaluation of 22 research papers and participated in the development of an edited academic book related to AI-enabled education and digital empowerment. He analyzed educational datasets and prepared reports supporting policy recommendations, AI adoption strategies, and digital learning interventions.`,
-  },
-  {
-    id: "education",
-    kind: "education",
-    title: "Education",
-    summary:
-      "M.Tech in Computational Science (DEI, CGPA 8.1), PG Diploma in Big Data & Logistics, ITI COPA, and B.Sc. PCM.",
-    tags: ["Computational Science", "Big Data", "Education", "DEI"],
-    body: `Bhanu's education: Master of Technology (M.Tech) in Computational Science, Dayalbagh Educational Institute, Agra (September 2022 - June 2024), CGPA 8.1. Postgraduate Diploma in Big Data & Logistics, Dayalbagh Educational Institute, Agra (September 2021 - August 2022), CGPA 6.8. ITI in Computer Operator & Programming Assistant (COPA), Government Industrial Training Institute, Bijnor (August 2020 - 2021), CGPA 8.8. Bachelor of Science (B.Sc.) in Physics, Chemistry, and Mathematics, MJP Rohilkhand University, Bareilly (August 2017 - October 2020), CGPA 6.0.`,
-  },
-  {
-    id: "publications",
-    kind: "research",
-    title: "Publications",
-    summary:
-      "Peer-reviewed journal article and an ILA international conference book chapter on AI, creativity, and Hindi library automation.",
-    tags: [
-      "Publications",
-      "Research",
-      "RAG",
-      "Semantic Search",
-      "AI Education",
-      "Peer-reviewed",
+    id: "experience-testneo",
+    title: "AI Engineer",
+    org: "Testneo",
+    period: "Dec 2024 – Feb 2025",
+    type: "Part-time",
+    place: "Remote",
+    bullets: [
+      "Built an AI-powered API Test Case Generator using Groq LLMs and ChromaDB RAG that generates functional, security and edge-case tests from PDF, DOCX, OpenAPI (JSON/YAML) and TXT documentation.",
+      "Implemented LangChain RAG workflows for context-aware generation, with export pipelines to JSON, CSV, Markdown and pytest.",
     ],
-    body: `Bhanu has peer-reviewed research output. (1) Kumari, S., Rana, B. P., & Tripathi, M. (2025), "Artificial Intelligence and Human Creativity: A Collaborative or Inhibitory Relationship," Shodh Bhumi, ISSN 3048-6203, Vol. 2, Issue 2, July-December 2025, pp. 672-690. (2) Rana, B. P., & Mandusia, A. K. (2026), "Transforming Hindi Library Automation: Semantic Search and AI-Enhanced Metadata," a book chapter in "Transforming Library Services in the AI Era: Library Services, User Engagement and Community Impact" — the 71st Annual ILA International Conference Proceedings (Indian Library Association, New Delhi & Swami Vivekanand Central Library, Kendriya Hindi Sansthan, Agra, Ministry of Education, Govt. of India), p. 302.`,
+    stack: ["Groq", "ChromaDB", "LangChain", "OpenAPI", "pytest"],
+    kbId: "testneo-api-generator",
   },
   {
-    id: "conference-presentations",
-    kind: "research",
-    title: "Conference Presentations & Awards",
-    summary:
-      "Two AI-and-law conference presentations, including a Best Paper award at a national conference.",
-    tags: [
-      "Conference",
-      "Best Paper",
-      "AI and Law",
-      "Neuromorphic",
-      "Sustainability",
-      "Award",
+    id: "experience-bytical",
+    title: "Machine Learning Intern",
+    org: "Bytical.ai",
+    period: "Jul 2024 – Dec 2024",
+    type: "Internship",
+    place: "Gurugram, Haryana (Remote)",
+    bullets: [
+      "Built an automated document-processing pipeline over 3,482 files with 95%+ OCR accuracy and sub-second query responses (OpenCV denoising, binarization, contour detection + PyTesseract).",
+      "Built an AI Smart HR Tool (FastAPI + Streamlit) generating job letters, job descriptions and onboarding plans — cut HR workload 50%, improved content accuracy 30% and reduced time-to-hire 25%.",
+      "Created an Azure OpenAI sentiment-analysis platform processing 100 comments/minute — reduced manual review time 70% and improved accuracy 25%.",
     ],
-    body: `Bhanu has presented award-winning conference work. (1) "Emerging AI Applications for Legal Self-Help in India" (Kumari, S., Kumar, A., & Rana, B. P.) — presented at the National Conference on the Intersection of Artificial Intelligence and Law, Amity Law School, Amity University Chhattisgarh, 20-21 August 2025; awarded Best Paper in Technical Session 8. (2) "AI, Technology & Sustainability: A Comparative Study of Neuromorphic Computing and the ATAL AI Web App" (Rana, B. P.) — presented at the 1st International Conference on AI, Law and Sustainability (ICALS), Manipal University Jaipur, 11-12 September 2025, in collaboration with Universidade Estadual do Norte do Paraná (Brazil) and Nicolaus Copernicus University (Poland).`,
-  },
-  {
-    id: "certifications",
-    kind: "skill",
-    title: "Certifications",
-    summary:
-      "Cloud and AI certifications from Oracle, AWS, University of Helsinki, Google, and others.",
-    tags: ["Certifications", "Oracle", "AWS", "AI", "Cloud"],
-    body: `Bhanu's certifications include: Oracle Cloud Infrastructure 2025 Certified AI Foundations Associate (Oracle University, 2025); AWS Cloud Practitioner Essentials (AWS Training & Certification, 2024); Generative AI Mastermind (Outskill, 2025); Elements of AI (University of Helsinki & MinnaLearn, 2020); Full Stack Web Development - Delta (Apna College, 2025); ChatGPT for Beginners (Great Learning Academy, 2024); Fundamentals of Digital Marketing (Google Digital Unlocked, 2020); Android Enterprise Associate Learning Path (Google, 2020); and Java Programming Quiz (CodeAlpha, 2024).`,
-  },
-  {
-    id: "achievements",
-    kind: "profile",
-    title: "Achievements & Recognition",
-    summary:
-      "Best Paper award, strong pilot adoption, research review, and academic honors.",
-    tags: ["Awards", "Best Paper", "Recognition", "Research"],
-    body: `Recognition includes: Best Paper Award (Technical Session 8, National Conference on the Intersection of AI and Law, Amity Law School, August 2025); 50-65% student adoption in the ATAL AI pilot across 6 rural government schools in Assam; review of 22+ research papers and contributions to an edited academic book on AI-enabled education; Best Project Showcase (Industrial Training Institute); Best Performer Student (MIET Kumaun); and Student of the Year (LIC).`,
-  },
-  {
-    id: "technical-skills",
-    kind: "skill",
-    title: "Technical Skills",
-    summary:
-      "Full stack of languages, AI/ML frameworks, GenAI/LLM, RAG, computer vision, backend, and data tooling.",
-    tags: ["Skills", "Python", "GenAI", "RAG", "Computer Vision", "FastAPI"],
-    body: `Languages: Python, JavaScript, TypeScript, SQL, Core Java, HTML5, CSS3. AI/ML frameworks: PyTorch, TensorFlow, Keras, Scikit-learn, Hugging Face Transformers, LangChain (LCEL), CrewAI. GenAI & LLM: OpenAI GPT-4o, Groq (LLaMA family), Ollama, Deepgram (STT), HuggingFace TTS, prompt engineering. RAG & vector search: ChromaDB, pgvector, Milvus, FAISS, MiniLM embeddings, semantic and hybrid retrieval. Computer vision: OpenCV, MediaPipe, PyTesseract, CNNs (VGG19, ResNet50), OCR, facial analysis. Backend & APIs: FastAPI, SQLModel, Redis, Celery, Docker, REST. Frontend: React 18/19, Next.js 16 (App Router), React Native, Vite, Tailwind CSS, Streamlit, Gradio, shadcn/ui. Databases: PostgreSQL, Supabase (Auth, Realtime, pgvector), MySQL, MongoDB, ChromaDB, Milvus. Cloud & DevOps: Docker, Vercel, Azure OpenAI, Power BI, Jupyter, Google Colab. NLP & data: spaCy, BART, TF-IDF, Pandas, NumPy, Matplotlib, Seaborn, Plotly. Spoken languages: English (professional proficiency) and Hindi (native).`,
+    stack: ["OpenCV", "PyTesseract", "FastAPI", "Streamlit", "Azure OpenAI"],
+    kbId: "bytical-ai",
   },
 ];
 
-export const featuredQuestions = [
-  "Why should we hire Bhanu?",
-  "Show me his strongest RAG projects.",
-  "What are his publications and research?",
-  "What production AI systems has he worked on?",
-  "Show me his computer vision work.",
-  "Explain the ATAL AI architecture.",
-];
+/* ------------------------------------------------------------------ */
+/* Work                                                                 */
+/* ------------------------------------------------------------------ */
 
-export const impactMetrics = [
-  {
-    value: "2+ yrs",
-    label: "AI engineering",
-    detail: "Shipping production GenAI, RAG, and computer vision systems.",
-  },
-  {
-    value: "95%+",
-    label: "OCR accuracy",
-    detail: "Automated document pipeline over 3,482 files at Bytical.ai.",
-  },
-  {
-    value: "570+",
-    label: "students reached",
-    detail: "Assam field research across digital learning adoption.",
-  },
-  {
-    value: "50-65%",
-    label: "pilot adoption",
-    detail: "Observed during comparative digital learning pilots.",
-  },
-  {
-    value: "6",
-    label: "schools covered",
-    detail: "Sualkuchi, Bongshar, Bamundi, Dadra, Amingaon, and Hajo.",
-  },
-  {
-    value: "22",
-    label: "papers reviewed",
-    detail: "AI-enabled education and digital empowerment research.",
-  },
-];
+export type PipelineStep = { node: string; detail: string };
 
-export type PortfolioProject = {
+export type Project = {
+  /** Stable URL segment. Never derive it from the name: URLs are indexed. */
+  slug: string;
+  kbId: string;
   name: string;
-  role: string;
-  category: string;
+  /** Plain statement of where the work was done. */
+  attribution: string;
   summary: string;
   stack: string[];
+  featured?: boolean;
   repoUrl?: string;
   demoUrl?: string;
-  isPrivate?: boolean;
+  demoLabel?: string;
+  /** Honest status or caveat, written as a sentence. */
+  note?: string;
+  pipeline?: PipelineStep[];
+  /** Listed on the home page; false keeps the page reachable but unlisted. */
+  listed: boolean;
 };
 
-export const portfolioProjects: PortfolioProject[] = [
+export const projects: Project[] = [
   {
-    name: "Aura AI",
-    role: "Founding AI Engineer",
-    category: "Computer Vision + GenAI",
-    summary:
-      "AI beauty platform with facial analysis, skin tone detection, recommendations, and virtual try-on.",
-    stack: ["FastAPI", "OpenCV", "MediaPipe", "Redis", "Celery", "React Native"],
-    isPrivate: true,
-  },
-  {
+    slug: "atal-ai-2-0",
+    kbId: "atal-ai",
     name: "ATAL AI 2.0",
-    role: "AI/ML Engineer",
-    category: "Education AI",
+    attribution: "Built at Kendriya Hindi Sansthan, since 2025",
     summary:
-      "Offline-first digital-literacy PWA with multilingual lessons, assessments, analytics, and a voice AI tutor.",
-    stack: ["Next.js 16", "React 19", "Supabase", "pgvector", "PWA", "TTS"],
-    repoUrl: "https://github.com/bhanu-pratap-rana/ATAL-AI-2.0",
+      "An offline-first learning app for digital and AI literacy, with a Hindi and Assamese curriculum, pre- and post-assessments, a voice tutor and teacher dashboards. Piloted with 570+ students in six government schools in Assam.",
+    stack: ["Next.js 16", "React 19", "TypeScript", "Supabase", "pgvector", "indic-parler-tts"],
+    featured: true,
+    repoUrl: `${GITHUB}/ATAL-AI-2.0`,
+    pipeline: [
+      { node: "Voice tutor", detail: "ai4bharat indic-parler-tts, with a browser speech fallback" },
+      { node: "Next.js 16 PWA", detail: "React 19, TypeScript, Hindi and Assamese lessons" },
+      { node: "Offline layer", detail: "IndexedDB, service worker, background sync queue" },
+      { node: "Supabase", detail: "PostgreSQL, Auth, Realtime, pgvector" },
+      { node: "Teacher dashboard", detail: "Classes, invite codes, CSV analytics" },
+    ],
+    listed: true,
   },
   {
+    slug: "hindi-semantic-search",
+    kbId: "hindi-semantic-search",
+    name: "Hindi Semantic Search System",
+    attribution: "Built at Kendriya Hindi Sansthan, published as an ILA book chapter",
+    summary:
+      "Cross-lingual search over 1,633 Hindi book records: ask in Hindi or English and get the same book. MiniLM embeddings in ChromaDB beside a TF-IDF baseline, with RAG Q&A and a three-agent CrewAI pipeline that writes and checks metadata.",
+    stack: ["ChromaDB", "LangChain", "CrewAI", "Groq", "Streamlit", "MiniLM"],
+    featured: true,
+    repoUrl: `${GITHUB}/Hindi-Books-Semantic-Search-System`,
+    note: "The repository does not yet report measured retrieval scores.",
+    pipeline: [
+      { node: "Book records", detail: "1,633 titles from Google Books and Open Library" },
+      { node: "Embeddings", detail: "paraphrase-multilingual-MiniLM-L12-v2, 384 dimensions" },
+      { node: "ChromaDB", detail: "HNSW index, cosine distance, beside a TF-IDF baseline" },
+      { node: "RAG Q&A", detail: "LangChain LCEL with a Groq-hosted LLaMA model" },
+      { node: "CrewAI agents", detail: "Description writer, category classifier, quality validator" },
+    ],
+    listed: true,
+  },
+  {
+    slug: "voice-ai-assistant",
+    kbId: "voice-ai-assistant",
     name: "Voice AI Assistant",
-    role: "AI Engineer",
-    category: "Realtime Voice AI",
+    attribution: "Key project on his résumé",
     summary:
-      "Real-time Deepgram streaming STT with Groq LLaMA 3.3 70B that answers from uploaded documents via RAG.",
-    stack: ["Deepgram", "Groq", "FastAPI", "React", "Vite", "RAG"],
-    repoUrl: "https://github.com/bhanu-pratap-rana/voice-assistant",
+      "A real-time voice assistant. It streams microphone audio to Deepgram for live transcription, then a Groq-hosted LLaMA 3.3 70B either suggests follow-up questions or answers from an uploaded PDF, DOCX or TXT file.",
+    stack: ["Deepgram", "Groq LLaMA 3.3 70B", "FastAPI", "React 18", "Vite", "WebSockets"],
+    featured: true,
+    repoUrl: `${GITHUB}/voice-assistant`,
     demoUrl: "https://bhanu-pratap-rana.github.io/voice-assistant/",
+    demoLabel: "Interface preview",
+    note: "The hosted link shows the interface only. Full function needs the backend running locally.",
+    pipeline: [
+      { node: "React + Vite client", detail: "Microphone capture and read-aloud" },
+      { node: "Deepgram nova-2", detail: "Streaming speech-to-text over WebSockets" },
+      { node: "FastAPI backend", detail: "Parses uploaded PDF, DOCX and TXT" },
+      { node: "Document context", detail: "The uploaded text grounds the answer" },
+      { node: "Groq LLaMA 3.3 70B", detail: "Answers, or five follow-up questions" },
+    ],
+    listed: true,
   },
   {
-    name: "Hindi Semantic Search",
-    role: "RAG Engineer",
-    category: "Multilingual Retrieval",
+    slug: "aura-ai",
+    kbId: "aura-ai",
+    name: "Aura AI",
+    attribution: "Co-founder, Aura AI and Media, since December 2025",
     summary:
-      "Agentic cross-lingual search over 1,633 Hindi books with MiniLM embeddings, ChromaDB, LangChain, and CrewAI.",
-    stack: ["ChromaDB", "LangChain", "CrewAI", "Groq", "Streamlit", "Embeddings"],
-    repoUrl:
-      "https://github.com/bhanu-pratap-rana/Hindi-Books-Semantic-Search-System",
+      "An AI beauty platform: facial analysis and skin-tone detection with MediaPipe and OpenCV, makeup recommendations, and a GPT-4o assistant for consultations, on an asynchronous FastAPI backend.",
+    stack: ["FastAPI", "PostgreSQL", "Redis", "Celery", "Docker", "React Native", "MediaPipe", "OpenCV", "GPT-4o"],
+    note: "In active development. The repository is private.",
+    pipeline: [
+      { node: "React Native app", detail: "Multilingual mobile client" },
+      { node: "FastAPI", detail: "Service and orchestration layer" },
+      { node: "OpenCV + MediaPipe", detail: "Facial analysis and skin-tone detection" },
+      { node: "Redis + Celery", detail: "Asynchronous processing in containers" },
+      { node: "GPT-4o assistant", detail: "Consultations and product recommendations" },
+    ],
+    listed: true,
   },
   {
+    slug: "api-test-case-generator",
+    kbId: "testneo-api-generator",
+    name: "API Test Case Generator",
+    attribution: "Built at Testneo, December 2024 to February 2025",
+    summary:
+      "Generates functional, security and edge-case API tests from documentation in PDF, DOCX, OpenAPI or TXT, using Groq models with ChromaDB retrieval. Exports to JSON, CSV, Markdown and pytest.",
+    stack: ["Groq", "ChromaDB", "LangChain", "OpenAPI", "pytest"],
+    note: "Built for Testneo. There is no public repository.",
+    listed: true,
+  },
+  {
+    slug: "smart-hr-tool",
+    kbId: "smart-hr-tool",
     name: "Smart HR Tool",
-    role: "AI Engineer",
-    category: "Developer / HR Automation",
+    attribution: "Started at Bytical.ai, continued as a public repository",
     summary:
-      "Dual-model HR document generator — local Ollama and cloud Groq — on FastAPI + Streamlit with PDF/DOCX export.",
-    stack: ["FastAPI", "SQLModel", "Ollama", "Groq", "Streamlit"],
-    repoUrl: "https://github.com/bhanu-pratap-rana/Smart-HR-Tool",
+      "Generates HR documents such as job letters, job descriptions and onboarding plans, with a choice of a local Ollama model or a Groq-hosted one, on FastAPI and Streamlit with PDF and DOCX export.",
+    stack: ["FastAPI", "SQLModel", "Alembic", "Ollama", "Groq", "Streamlit"],
+    repoUrl: `${GITHUB}/Smart-HR-Tool`,
+    listed: true,
   },
   {
+    slug: "eye-disease-classification",
+    kbId: "eye-disease-classification",
+    name: "Eye Disease Classification",
+    attribution: "Key project on his résumé",
+    summary:
+      "Transfer learning on 5,335 fundus images across 10 classes. ResNet50 reached 85% accuracy and 0.85 F1; the VGG19 baseline reached 55% and 0.55.",
+    stack: ["TensorFlow/Keras", "Transfer learning", "Scikit-learn"],
+    repoUrl: `${GITHUB}/Eye-Image-Classification-Using-VGG19-and-ResNet50`,
+    note: "Not a controlled comparison: the two models were trained with different epochs and batch sizes.",
+    listed: true,
+  },
+  {
+    slug: "custom-document-ai-chatbot",
+    kbId: "custom-document-ai-chatbot",
     name: "Custom Document AI Chatbot",
-    role: "ML Engineer",
-    category: "Document Intelligence + OCR",
+    attribution: "Key project on his résumé",
     summary:
-      "OCR + NER + summarization pipeline with Milvus vector search and a chatbot interface over a document corpus.",
+      "A document pipeline that reads images with Tesseract OCR, extracts entities with spaCy, summarises with BART, and retrieves through Milvus vector search behind a chat interface.",
     stack: ["Tesseract", "spaCy", "BART", "Milvus", "MySQL"],
-    repoUrl: "https://github.com/bhanu-pratap-rana/Custom-Document-AI-chatbot",
+    repoUrl: `${GITHUB}/Custom-Document-AI-chatbot`,
+    listed: true,
   },
   {
-    name: "Sales Pitch Generator",
-    role: "GenAI",
-    category: "GenAI Automation",
+    slug: "bolchaal-hindi",
+    kbId: "bolchaal-hindi",
+    name: "Bolchaal Hindi",
+    attribution: "Personal project, started November 2026",
     summary:
-      "Turns an uploaded PDF into a tailored sales pitch with LangChain, Groq, HuggingFace embeddings, and FAISS.",
-    stack: ["Streamlit", "LangChain", "Groq", "FAISS", "Embeddings"],
-    repoUrl: "https://github.com/bhanu-pratap-rana/Sales-Pitch-generator",
+      "A 20-day spoken-Hindi course for travellers and international students. Every line of dialogue is voiced, shown in Hindi, Roman and English, and changes with the speaker's gender. Works offline on a phone.",
+    stack: ["JavaScript", "Service worker", "Python", "Piper TTS", "Playwright"],
+    repoUrl: `${GITHUB}/bolchaal-hindi`,
+    demoUrl: "https://bhanu-pratap-rana.github.io/bolchaal-hindi/",
+    demoLabel: "Preview",
+    note: "The lessons are still under review by students and a Hindi teacher, so this is a preview.",
+    listed: true,
+  },
+  {
+    slug: "sales-pitch-generator",
+    kbId: "sales-pitch-generator",
+    name: "Sales Pitch Generator",
+    attribution: "Personal project",
+    summary:
+      "Turns an uploaded PDF into a tailored sales pitch with LangChain, Groq, HuggingFace embeddings and FAISS retrieval, and shows the passages it used.",
+    stack: ["Streamlit", "LangChain", "Groq", "FAISS"],
+    repoUrl: `${GITHUB}/Sales-Pitch-generator`,
+    listed: false,
   },
 ];
 
-export function projectSlug(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
+/** Smaller public repositories, linked as one line under the work list. */
+export const moreWork: KnowledgeLink[] = [
+  { label: "Sales Pitch Generator", href: "/projects/sales-pitch-generator" },
+  { label: "Prompt Perfect Generator", href: `${GITHUB}/prompt-perfect-generator` },
+];
+
+export function getProjectBySlug(slug: string): Project | undefined {
+  return projects.find((project) => project.slug === slug);
 }
 
-const projectKnowledgeMap: Record<string, string> = {
-  "Aura AI": "aura-ai",
-  "ATAL AI 2.0": "atal-ai",
-  "Voice AI Assistant": "voice-ai-assistant",
-  "Hindi Semantic Search": "hindi-semantic-search",
-  "Smart HR Tool": "smart-hr-tool",
-  "Custom Document AI Chatbot": "custom-document-ai-chatbot",
-  "Sales Pitch Generator": "sales-pitch-generator",
+/* ------------------------------------------------------------------ */
+/* Skills — the résumé's ten groups, in its order                      */
+/* ------------------------------------------------------------------ */
+
+export type SkillGroup = { group: string; items: string[] };
+
+export const skills: SkillGroup[] = [
+  {
+    group: "GenAI & LLMs",
+    items: ["OpenAI API (GPT-4o)", "Azure OpenAI", "Groq (LLaMA 3.3 70B)", "Ollama", "Hugging Face Transformers", "Prompt engineering", "Structured output (Pydantic)"],
+  },
+  {
+    group: "RAG & vector search",
+    items: ["LangChain (LCEL)", "ChromaDB", "pgvector", "Milvus", "FAISS", "Sentence-Transformers (MiniLM-L12-v2)", "Semantic search", "TF-IDF"],
+  },
+  {
+    group: "AI agents",
+    items: ["CrewAI", "Multi-agent pipelines", "Tool integration", "Retry/backoff (Tenacity)"],
+  },
+  {
+    group: "ML & computer vision",
+    items: ["TensorFlow/Keras", "Scikit-learn", "CNN transfer learning (VGG19, ResNet50)", "OpenCV", "MediaPipe", "PyTesseract/OCR", "Facial analysis"],
+  },
+  {
+    group: "Speech & NLP",
+    items: ["Deepgram (STT)", "Hugging Face TTS (indic-parler-tts)", "spaCy", "BART"],
+  },
+  {
+    group: "Backend & data",
+    items: ["Python", "FastAPI", "SQLModel", "Celery", "Redis", "REST APIs", "WebSockets", "PostgreSQL", "Supabase", "MySQL", "Alembic", "SQL"],
+  },
+  {
+    group: "Cloud & DevOps",
+    items: ["Docker", "AWS (ECS/Fargate)", "Vercel", "Git/GitHub", "pytest", "Structured logging"],
+  },
+  {
+    group: "Frontend",
+    items: ["TypeScript", "JavaScript", "React 18/19", "Next.js 16 (App Router)", "React Native", "Tailwind CSS", "Streamlit", "Vite"],
+  },
+  {
+    group: "Analytics",
+    items: ["Pandas", "NumPy", "Matplotlib", "Plotly", "Power BI"],
+  },
+  {
+    group: "Languages",
+    items: ["English (professional proficiency)", "Hindi (native)"],
+  },
+];
+
+/* ------------------------------------------------------------------ */
+/* Publications & presentations — résumé order, citations verbatim     */
+/* ------------------------------------------------------------------ */
+
+export type Publication = {
+  type: "Book chapter" | "Journal article" | "Conference presentation";
+  year: string;
+  title: string;
+  citation: string;
+  award?: string;
 };
 
-export function getProjectBySlug(slug: string): PortfolioProject | undefined {
-  return portfolioProjects.find((project) => projectSlug(project.name) === slug);
-}
-
-export function getProjectDetail(name: string): KnowledgeItem | undefined {
-  const id = projectKnowledgeMap[name];
-  return id ? knowledgeBase.find((item) => item.id === id) : undefined;
-}
-
-export type ArchitectureView = {
-  key: string;
-  label: string;
-  steps: { node: string; detail: string }[];
-};
-
-export const architectures: ArchitectureView[] = [
+export const publications: Publication[] = [
   {
-    key: "this-site",
-    label: "This site",
-    steps: [
-      { node: "Next.js client", detail: "React 19 chat UI, streamed render" },
-      { node: "Route handler /api/chat", detail: "Server-side, rate-limited" },
-      { node: "Hybrid retrieval", detail: "Full profile index + keyword-scored evidence" },
-      { node: "Groq Llama 4 Scout", detail: "Streamed completion" },
-      { node: "Grounded fallback", detail: "Local answer if Groq is unavailable" },
-    ],
+    type: "Book chapter",
+    year: "2026",
+    title: "Transforming Hindi Library Automation: Semantic Search and AI-Enhanced Metadata",
+    citation:
+      "Rana, B. P., & Mandusia, A. K. (2026). 71st Annual ILA International Conference Proceedings, Indian Library Association, New Delhi & Kendriya Hindi Sansthan, Agra, p. 302.",
   },
   {
-    key: "aura-ai",
-    label: "Aura AI",
-    steps: [
-      { node: "React Native app", detail: "Mobile client" },
-      { node: "FastAPI", detail: "Service + orchestration layer" },
-      { node: "OpenCV + MediaPipe", detail: "Facial analysis, skin-tone detection" },
-      { node: "Redis + Celery", detail: "Async AI processing" },
-      { node: "GPT-4o assistant", detail: "Personalized consultation" },
-    ],
+    type: "Journal article",
+    year: "2025",
+    title: "Artificial Intelligence and Human Creativity: A Collaborative or Inhibitory Relationship",
+    citation:
+      "Kumari, S., Rana, B. P., & Tripathi, M. (2025). Shodh Bhumi, ISSN 3048-6203, Vol. 2, Issue 2, pp. 672–690.",
   },
   {
-    key: "voice-ai",
-    label: "Voice AI",
-    steps: [
-      { node: "React + Vite client", detail: "Mic capture + read-aloud" },
-      { node: "Deepgram nova-2", detail: "WebSocket streaming STT" },
-      { node: "FastAPI backend", detail: "Document parsing + orchestration" },
-      { node: "Doc RAG", detail: "PDF/DOCX retrieval context" },
-      { node: "Groq LLaMA 3.3 70B", detail: "Answers / follow-up questions" },
-    ],
+    type: "Conference presentation",
+    year: "Aug 2025",
+    title: "Emerging AI Applications for Legal Self-Help in India",
+    citation:
+      "Kumari, S., Kumar, A., & Rana, B. P. National Conference on the Intersection of AI and Law, Amity Law School, Chhattisgarh, Aug 2025.",
+    award: "Best Paper Award, Technical Session 8",
+  },
+  {
+    type: "Conference presentation",
+    year: "Sep 2025",
+    title: "AI, Technology & Sustainability: A Comparative Study of Neuromorphic Computing and the ATAL AI Web App",
+    citation:
+      "Rana, B. P. 1st International Conference on AI, Law and Sustainability (ICALS), Manipal University Jaipur, with UENP (Brazil) & Nicolaus Copernicus University (Poland), Sep 2025.",
   },
 ];
 
-export const experienceTimeline = [
-  {
-    org: "Kendriya Hindi Sansthan",
-    role: "Research Assistant / AI ML Engineer",
-    period: "March 2025 - Present",
-    proof: "ATAL AI, multilingual semantic search, field studies, analytics, and AI education research.",
-  },
-  {
-    org: "Aura AI",
-    role: "Founding AI Engineer",
-    period: "December 2025 - Present",
-    proof: "FastAPI, Redis, Celery, PostgreSQL, React Native, OpenCV, MediaPipe, and GPT-4o workflows.",
-  },
-  {
-    org: "Bytical.ai",
-    role: "Machine Learning Intern",
-    period: "July 2024 - December 2024",
-    proof: "OCR pipeline over 3,482 files at 95%+ accuracy, Smart HR Tool (-50% workload), and an Azure sentiment platform.",
-  },
-  {
-    org: "Testneo",
-    role: "AI Engineer",
-    period: "December 2024 - February 2025",
-    proof: "Groq and ChromaDB powered API test generation from PDF, DOCX, OpenAPI, YAML, JSON, and TXT inputs.",
-  },
-  {
-    org: "Illinois Institute of Technology",
-    role: "Data Analyst (Intern)",
-    period: "May 2023 - July 2023",
-    proof: "Improved data integrity across 50,000+ records (+15% accuracy) and built dashboards that cut reporting time 30%.",
-  },
-];
-
-export const techStack = [
-  "Python",
-  "FastAPI",
-  "PostgreSQL",
-  "Supabase",
-  "Redis",
-  "Celery",
-  "Docker",
-  "OpenCV",
-  "MediaPipe",
-  "PyTorch",
-  "LangChain",
-  "Groq",
-  "OpenAI GPT-4o",
-  "CrewAI",
-  "ChromaDB",
-  "pgvector",
-  "Milvus",
-  "Deepgram",
-  "spaCy",
-  "React Native",
-  "TypeScript",
-  "Next.js",
-];
+/* ------------------------------------------------------------------ */
+/* Background                                                           */
+/* ------------------------------------------------------------------ */
 
 export type EducationEntry = {
   degree: string;
   org: string;
   period: string;
   score: string;
+  /** The résumé lists every score; the page shows only the stronger ones. */
+  showScore: boolean;
 };
 
-export const educationEntries: EducationEntry[] = [
-  {
-    degree: "M.Tech — Computational Science",
-    org: "Dayalbagh Educational Institute, Agra",
-    period: "Sep 2022 – Jun 2024",
-    score: "CGPA 8.1",
-  },
-  {
-    degree: "PG Diploma — Big Data & Logistics",
-    org: "Dayalbagh Educational Institute, Agra",
-    period: "Sep 2021 – Aug 2022",
-    score: "CGPA 6.8",
-  },
-  {
-    degree: "ITI — Computer Operator & Programming Assistant (COPA)",
-    org: "Govt. Industrial Training Institute, Bijnor",
-    period: "Aug 2020 – 2021",
-    score: "CGPA 8.8",
-  },
-  {
-    degree: "B.Sc — Physics, Chemistry, Mathematics",
-    org: "MJP Rohilkhand University, Bareilly",
-    period: "Aug 2017 – Oct 2020",
-    score: "CGPA 6.0",
-  },
-];
-
-export type ResearchEntry = {
-  title: string;
-  venue: string;
-  year: string;
-  award?: boolean;
-};
-
-export const researchOutput: ResearchEntry[] = [
-  {
-    title:
-      "Transforming Hindi Library Automation: Semantic Search and AI-Enhanced Metadata",
-    venue:
-      "Book chapter — 71st Annual ILA International Conference Proceedings (Indian Library Association & KHS Agra)",
-    year: "2026",
-  },
-  {
-    title:
-      "Emerging AI Applications for Legal Self-Help in India",
-    venue:
-      "National Conference on AI & Law, Amity Law School — Best Paper, Technical Session 8",
-    year: "Aug 2025",
-    award: true,
-  },
-  {
-    title:
-      "AI, Technology & Sustainability: Neuromorphic Computing and the ATAL AI Web App",
-    venue:
-      "1st Intl. Conference on AI, Law & Sustainability (ICALS), Manipal University Jaipur",
-    year: "Sep 2025",
-  },
-  {
-    title:
-      "Artificial Intelligence and Human Creativity: A Collaborative or Inhibitory Relationship",
-    venue: "Shodh Bhumi, ISSN 3048-6203, Vol. 2, Issue 2, pp. 672–690",
-    year: "2025",
-  },
+export const education: EducationEntry[] = [
+  { degree: "M.Tech in Computational Science", org: "Dayalbagh Educational Institute, Agra", period: "Sep 2022 – Jun 2024", score: "CGPA 8.1", showScore: true },
+  { degree: "PG Diploma in Big Data & Logistics", org: "Dayalbagh Educational Institute, Agra", period: "Sep 2021 – Aug 2022", score: "CGPA 6.8", showScore: true },
+  { degree: "ITI in Computer Operator & Programming Assistant (COPA)", org: "Govt. ITI, Bijnor", period: "Aug 2020 – Aug 2021", score: "CGPA 8.8", showScore: true },
+  { degree: "B.Sc in Physics, Chemistry and Mathematics", org: "MJP Rohilkhand University, Bareilly", period: "Aug 2017 – Oct 2020", score: "CGPA 6.0", showScore: true },
 ];
 
 export const certifications = [
-  "OCI 2025 Certified AI Foundations Associate — Oracle",
-  "AWS Cloud Practitioner Essentials — AWS",
-  "Generative AI Mastermind — Outskill (2025)",
-  "Elements of AI — University of Helsinki",
-  "Full Stack Web Development (Delta) — Apna College (2025)",
-  "ChatGPT for Beginners — Great Learning",
-  "Fundamentals of Digital Marketing — Google",
-  "Android Enterprise Associate — Google",
-  "Java Programming Quiz — CodeAlpha",
+  { name: "OCI 2025 Certified AI Foundations Associate", issuer: "Oracle", year: "2025" },
+  { name: "Generative AI Mastermind", issuer: "Outskill", year: "2025" },
+  { name: "Full Stack Web Development (Delta)", issuer: "Apna College", year: "2025" },
+  { name: "AWS Cloud Practitioner Essentials", issuer: "AWS", year: "2024" },
 ];
+
+export const achievements = [
+  { title: "Best Paper Award", by: "Amity Law School", year: "2025" },
+  { title: "Best Project Showcase", by: "Govt. ITI, Bijnor" },
+  { title: "Best Performer Student", by: "MIET Kumaun" },
+  { title: "Student of the Year", by: "LIC" },
+];
+
+export const volunteer = {
+  title: "Programmer & Media Manager (Volunteer)",
+  org: "Sahitya Unnayan Sansthan, Chandausi",
+  period: "Apr 2026 – Present",
+  summary:
+    "Lead technology and digital media for a Hindi literary and social-development NGO: digital platforms, outreach and AI-tool adoption.",
+};
+
+/* ------------------------------------------------------------------ */
+/* Knowledge base — what the copilot can retrieve, in page order       */
+/* ------------------------------------------------------------------ */
+
+const SKILL = (group: string) =>
+  skills.find((entry) => entry.group === group)?.items.join(", ") ?? "";
+
+export const knowledgeBase: KnowledgeItem[] = [
+  {
+    id: "profile-summary",
+    kind: "profile",
+    title: "Profile summary",
+    summary:
+      "Applied AI Engineer in Agra working on generative AI, RAG, AI agents, computer vision and Python backends, with a focus on Hindi and other Indian languages.",
+    tags: ["Applied AI Engineer", "GenAI", "RAG", "AI Agents", "Computer Vision", "FastAPI", "Indic AI", "Hindi"],
+    body: `Bhanu Pratap Rana is an Applied AI Engineer based in Agra, Uttar Pradesh, India. He has worked in AI since July 2024: a machine learning internship at Bytical.ai (July to December 2024), part-time AI engineering at Testneo (December 2024 to February 2025), and a full-time role as Research Assistant (Technical) and AI/ML Engineer at Kendriya Hindi Sansthan, Ministry of Education, since March 2025. Since December 2025 he is also the part-time co-founder of Aura AI and Media. His résumé describes this as 2+ years building AI systems across generative AI, RAG, AI agents, computer vision and Python backends (FastAPI, LangChain, Celery and Redis, PostgreSQL, Docker). His specialism is multilingual and Indic AI: an offline-first Hindi and Assamese learning app piloted with 570+ rural students, and a semantic search engine over 1,633 Hindi books. He has 2 publications (a book chapter and a journal article) and 2 conference presentations, one of which won a Best Paper Award. Spoken languages: English (professional proficiency) and Hindi (native).`,
+    links: [
+      { label: "Résumé (PDF)", href: profile.resumePath },
+      { label: "GitHub", href: profile.github },
+      { label: "LinkedIn", href: profile.linkedin },
+    ],
+    anchor: "top",
+    prompt: "Summarise Bhanu in 30 seconds: role, experience and location.",
+    aliases: ["summary", "summarise", "summarize", "about", "who", "introduce", "introduction", "overview", "background", "hire", "hiring", "seniority", "senior", "years", "location", "based", "role", "strengths", "strongest", "fit", "languages", "speak", "speaks", "spoken", "english"],
+    basis: "resume",
+  },
+  {
+    id: "atal-ai",
+    kind: "project",
+    title: "ATAL AI 2.0",
+    summary:
+      "Offline-first Hindi and Assamese learning app with assessments, a voice tutor and teacher dashboards, piloted with 570+ students in six Assam schools.",
+    tags: ["ATAL AI", "PWA", "Offline-first", "Next.js", "React", "TypeScript", "Supabase", "pgvector", "TTS", "Voice tutor", "Education", "Hindi", "Assamese"],
+    body: `ATAL AI 2.0 is an offline-first Progressive Web App for digital and AI literacy that Bhanu architected and built at Kendriya Hindi Sansthan, under the ICSSR-funded "AI Based Remedial Education Model". Stack named in his résumé: Next.js 16, React 19, TypeScript and Supabase with pgvector. It has a Hindi and Assamese curriculum, pre- and post-assessments, gamification, a voice AI tutor using ai4bharat indic-parler-tts, teacher dashboards with CSV analytics, and OTP-based role access. It was piloted with 570+ students across 6 government schools in Assam; his résumé reports 50–65% student adoption in pilot comparisons against existing digital learning platforms (self-reported; the measurement method is not documented here). The public repository adds detail: offline support uses IndexedDB (Dexie), a service worker and a background sync queue with retries; the backend is Supabase (PostgreSQL, Auth, Realtime, pgvector); the curriculum has 568 markdown items; tests are written in Playwright. This project does not use FastAPI, Redis or Celery.`,
+    links: [{ label: "Code", href: `${GITHUB}/ATAL-AI-2.0` }],
+    anchor: "work-atal-ai-2-0",
+    prompt: "How is ATAL AI 2.0 built to work offline, and where does the voice tutor fit?",
+    aliases: ["atal", "learning", "literacy", "students", "pilot", "piloted", "schools", "assam", "offline", "tutor", "classroom", "teachers", "adoption", "edtech", "architecture"],
+    basis: "resume+repo",
+  },
+  {
+    id: "hindi-semantic-search",
+    kind: "project",
+    title: "Hindi Semantic Search System",
+    summary:
+      "Cross-lingual semantic search and RAG Q&A over 1,633 Hindi book records, with MiniLM embeddings in ChromaDB, a TF-IDF baseline and a CrewAI metadata pipeline.",
+    tags: ["RAG", "Semantic Search", "Embeddings", "ChromaDB", "LangChain", "LCEL", "CrewAI", "Groq", "Streamlit", "MiniLM", "TF-IDF", "Hindi", "Vector Search", "Multilingual"],
+    body: `The Hindi Semantic Search System is a cross-lingual search engine over 1,633 Hindi books, built by Bhanu at Kendriya Hindi Sansthan. A reader can search in Hindi or in English and reach the same book: the repository's example is that "Godan" and "गोदान" resolve to the same title. It embeds book records with paraphrase-multilingual-MiniLM-L12-v2 (384 dimensions) and stores them in ChromaDB with an HNSW index and cosine distance. A TF-IDF keyword baseline runs beside it for side-by-side comparison. RAG question answering is built with LangChain LCEL on a Groq-hosted LLaMA model. A CrewAI multi-agent pipeline improves the metadata with three agents: a description generator, a category classifier and a quality validator. The interface is Streamlit, and the data comes from Google Books and Open Library. It is published as a book chapter in the 71st Annual ILA International Conference Proceedings. Limitation, from the repository: only about a fifth of the records have descriptions, and no measured retrieval scores (such as precision at k) are reported yet.`,
+    links: [{ label: "Code", href: `${GITHUB}/Hindi-Books-Semantic-Search-System` }],
+    anchor: "work-hindi-semantic-search",
+    prompt: "How does the Hindi Semantic Search pipeline work, end to end?",
+    aliases: ["books", "library", "search", "retrieval", "embedding", "vector", "database", "cross-lingual", "multilingual", "indic", "agents", "agentic", "strongest"],
+    basis: "resume+repo",
+  },
+  {
+    id: "voice-ai-assistant",
+    kind: "project",
+    title: "Voice AI Assistant",
+    summary:
+      "Real-time voice assistant: Deepgram streaming transcription, then a Groq LLaMA 3.3 70B that suggests follow-ups or answers from an uploaded document.",
+    tags: ["Voice AI", "Deepgram", "STT", "Groq", "LLaMA 3.3 70B", "FastAPI", "React", "Vite", "WebSockets", "RAG", "Realtime"],
+    body: `The Voice AI Assistant is a real-time voice assistant. It streams microphone audio to Deepgram nova-2 over WebSockets for live speech-to-text. A Groq-hosted LLaMA 3.3 70B then works in one of two modes: it suggests five follow-up questions from the transcript, or it answers questions from an uploaded PDF, DOCX or TXT file. The frontend is React 18 with Vite; the backend is FastAPI. Read-aloud uses the browser's speech synthesis. His résumé describes the document answering as RAG; in the repository the uploaded document's text is passed to the model as context, without a vector store. Limitation: the hosted GitHub Pages link shows the interface only, and full function needs the backend running locally.`,
+    links: [
+      { label: "Code", href: `${GITHUB}/voice-assistant` },
+      { label: "Interface preview", href: "https://bhanu-pratap-rana.github.io/voice-assistant/" },
+    ],
+    anchor: "work-voice-ai-assistant",
+    prompt: "How does the Voice AI Assistant handle streaming speech and document answers?",
+    aliases: ["speech", "audio", "microphone", "transcription", "streaming", "real-time", "realtime", "demo"],
+    basis: "resume+repo",
+  },
+  {
+    id: "aura-ai",
+    kind: "experience",
+    title: "Aura AI — Co-Founder, Aura AI and Media",
+    summary:
+      "AI beauty platform in active development: facial analysis and skin-tone detection, makeup recommendations and a GPT-4o assistant on an asynchronous FastAPI backend.",
+    tags: ["Aura AI", "Co-Founder", "FastAPI", "PostgreSQL", "Redis", "Celery", "Docker", "React Native", "OpenCV", "MediaPipe", "GPT-4o", "Computer Vision", "Facial Analysis"],
+    body: `Bhanu is the co-founder of Aura AI and Media, an AI-first beauty technology and media venture, part-time and remote since December 2025. Aura AI is its platform. Status: in active development, not launched; the repository is private. He designed the end-to-end architecture of an asynchronous platform on FastAPI, PostgreSQL, Redis, Celery, Docker and React Native. He built computer vision pipelines with MediaPipe and OpenCV for real-time facial analysis, skin-tone detection and personalised makeup recommendation. He integrated GPT-4o as an AI beauty assistant for consultations and product recommendations. He implemented containerised asynchronous processing with Celery and Redis, and multilingual React Native apps.`,
+    anchor: "work-aura-ai",
+    prompt: "How did he design the Aura AI platform, and what stage is it at?",
+    aliases: ["aura", "beauty", "makeup", "startup", "founder", "cofounder", "venture", "vision", "face", "skin", "async", "asynchronous", "architecture", "product", "end-to-end", "gpt"],
+    basis: "resume",
+  },
+  {
+    id: "testneo-api-generator",
+    kind: "experience",
+    title: "Testneo — AI Engineer (API Test Case Generator)",
+    summary:
+      "Part-time, December 2024 to February 2025: built a Groq and ChromaDB RAG system that generates API tests from documentation.",
+    tags: ["Testneo", "AI Engineer", "Groq", "ChromaDB", "LangChain", "RAG", "OpenAPI", "pytest", "Test Generation"],
+    body: `At Testneo (remote, part-time, December 2024 to February 2025) Bhanu worked as an AI Engineer. He built an AI-powered API Test Case Generator using Groq LLMs and ChromaDB retrieval that generates functional, security and edge-case tests from API documentation in PDF, DOCX, OpenAPI (JSON or YAML) and TXT. He implemented LangChain RAG workflows for context-aware generation, with export pipelines to JSON, CSV, Markdown and pytest. The code belongs to Testneo and there is no public repository.`,
+    anchor: "experience-testneo",
+    prompt: "What did he build at Testneo?",
+    aliases: ["testing", "tests", "qa", "api", "documentation", "swagger"],
+    basis: "resume",
+  },
+  {
+    id: "smart-hr-tool",
+    kind: "project",
+    title: "Smart HR Tool",
+    summary:
+      "HR document generator on FastAPI and Streamlit with a local Ollama model or a Groq-hosted one, and PDF and DOCX export.",
+    tags: ["Smart HR Tool", "FastAPI", "SQLModel", "Alembic", "Pydantic", "Ollama", "Groq", "Streamlit", "HR", "Automation"],
+    body: `Smart HR Tool generates HR documents. Bhanu first built it during his internship at Bytical.ai as a FastAPI and Streamlit tool producing job letters, job descriptions and onboarding plans; his résumé reports that it cut HR workload 50%, improved content accuracy 30% and reduced time-to-hire 25% (self-reported; the measurement method is not documented here). The public repository is a later version with two model options: a local model through Ollama, or Groq's hosted LLaMA 3.3 70B. Its backend is FastAPI with SQLModel, Pydantic and Alembic migrations; documents export to PDF and DOCX. It adds interview questions and performance reviews to the generators and exposes a documented REST API. The repository itself reports no metrics.`,
+    links: [{ label: "Code", href: `${GITHUB}/Smart-HR-Tool` }],
+    anchor: "work-smart-hr-tool",
+    prompt: "What does the Smart HR Tool do, and how is it built?",
+    aliases: ["hr", "recruitment", "letters", "onboarding", "documents", "local", "rest"],
+    basis: "resume+repo",
+  },
+  {
+    id: "eye-disease-classification",
+    kind: "project",
+    title: "Eye Disease Classification — VGG19 vs ResNet50",
+    summary:
+      "Transfer learning on 5,335 fundus images across 10 classes: ResNet50 reached 85% accuracy and 0.85 F1, the VGG19 baseline 55% and 0.55.",
+    tags: ["Computer Vision", "TensorFlow", "Keras", "Transfer Learning", "CNN", "VGG19", "ResNet50", "Scikit-learn", "Medical Imaging", "Classification"],
+    body: `Eye Disease Classification compares two ImageNet-pretrained CNNs fine-tuned to classify eye diseases from fundus images. The dataset has 5,335 images across 10 classes (including diabetic retinopathy, glaucoma, retinal detachment, myopia and healthy), resized to 224×224, with augmentation and early stopping. ResNet50 reached 85% accuracy and 0.85 F1. The VGG19 baseline reached 55% accuracy and 0.55 F1. Precision, recall and confusion matrices were also evaluated. It was built with TensorFlow/Keras and Scikit-learn. Limitation: this is not a controlled comparison. The repository shows the two models were trained with different settings (VGG19 for 50 epochs at batch size 32, ResNet50 for 10 epochs at batch size 16), and it does not document the evaluation split.`,
+    links: [{ label: "Code", href: `${GITHUB}/Eye-Image-Classification-Using-VGG19-and-ResNet50` }],
+    anchor: "work-eye-disease-classification",
+    prompt: "What were the results of the eye disease classification project, and how far can they be trusted?",
+    aliases: ["eye", "fundus", "retina", "medical", "deep", "learning", "accuracy", "f1", "model", "training", "vision", "image", "images"],
+    basis: "resume+repo",
+  },
+  {
+    id: "custom-document-ai-chatbot",
+    kind: "project",
+    title: "Custom Document AI Chatbot",
+    summary:
+      "OCR, entity recognition and summarisation pipeline with Milvus vector search behind a chat interface.",
+    tags: ["OCR", "Tesseract", "spaCy", "NER", "BART", "Milvus", "MySQL", "NLP", "Document Intelligence", "Vector Search"],
+    body: `The Custom Document AI Chatbot is a document pipeline. It extracts text from document images with Tesseract OCR, recognises named entities with spaCy, summarises with BART, stores vectors in Milvus for retrieval and structured data in MySQL, and serves the result through a chat interface. The repository includes a synthetic ticket dataset generator for testing. It reports no metrics.`,
+    links: [{ label: "Code", href: `${GITHUB}/Custom-Document-AI-chatbot` }],
+    anchor: "work-custom-document-ai-chatbot",
+    prompt: "How does the Custom Document AI Chatbot process a document?",
+    aliases: ["document", "documents", "pdf", "scan", "chatbot", "summarisation", "summarization", "entities", "vector", "database"],
+    basis: "resume+repo",
+  },
+  {
+    id: "bolchaal-hindi",
+    kind: "project",
+    title: "Bolchaal Hindi",
+    summary:
+      "A 20-day spoken-Hindi course app with voiced dialogues in Hindi, Roman and English that works offline. A preview: the lessons are still under review.",
+    tags: ["Hindi", "TTS", "Piper", "JavaScript", "Service Worker", "Offline", "Python", "Playwright", "Language Learning"],
+    body: `Bolchaal Hindi is a personal project started in November 2026: a 20-day spoken-Hindi course for travellers and international students. Each day is a set of everyday conversations (airport, railway, hotel, restaurant, shopping, health, emergencies), with every line voiced and shown in Hindi, Roman script and English. Because Hindi verbs change with the speaker's gender, a switch changes the learner's lines, what others say to them, and the voice. The learner can listen line by line at different speeds, speak and record themselves, and take short listening checks. A day can be saved to the phone and played offline. It is built with plain HTML, CSS and JavaScript modules with a service worker; Python tooling validates the lessons and builds the audio with Piper Hindi voices; Playwright tests run on laptop and phone sizes. A reviewer mode lets a teacher mark each line and export corrections. Status, from the repository: all 20 days are drafted, but the lessons are still under review by students and a Hindi teacher, and the voices are AI-generated demo voices, so the site is a preview.`,
+    links: [
+      { label: "Code", href: `${GITHUB}/bolchaal-hindi` },
+      { label: "Preview", href: "https://bhanu-pratap-rana.github.io/bolchaal-hindi/" },
+    ],
+    anchor: "work-bolchaal-hindi",
+    prompt: "What is Bolchaal Hindi, and how does it work?",
+    aliases: ["bolchaal", "spoken", "course", "travellers", "language", "lessons", "audio", "voices", "newest", "latest", "recent"],
+    basis: "repo",
+  },
+  {
+    id: "sales-pitch-generator",
+    kind: "project",
+    title: "Sales Pitch Generator and other public repositories",
+    summary:
+      "Smaller public work: a PDF-to-sales-pitch app with FAISS retrieval, a prompt-improving browser extension, and an Azure OpenAI sentiment script.",
+    tags: ["Streamlit", "LangChain", "Groq", "FAISS", "Embeddings", "RAG", "Azure OpenAI", "Chrome Extension"],
+    body: `Beyond the featured work, Bhanu's public GitHub has smaller projects. Sales Pitch Generator is a Streamlit app that turns an uploaded PDF into a tailored sales pitch: it loads the document, builds HuggingFace embeddings in FAISS, retrieves the most relevant sections, and generates the pitch with Groq through LangChain, showing the passages it used. Prompt Perfect Generator is a browser extension with a LangChain backend that rewrites prompts and supports several model providers. There is also an Azure OpenAI sentiment-analysis script built with LangChain, related to his Bytical.ai internship work.`,
+    links: [
+      { label: "Sales Pitch Generator", href: `${GITHUB}/Sales-Pitch-generator` },
+      { label: "Prompt Perfect Generator", href: `${GITHUB}/prompt-perfect-generator` },
+      { label: "All repositories", href: GITHUB },
+    ],
+    anchor: "work-more",
+    prompt: "What other public repositories does he have?",
+    aliases: ["github", "repositories", "repos", "open-source", "opensource", "side", "other", "more", "extension", "sales", "sentiment"],
+    basis: "repo",
+  },
+  {
+    id: "khs-research-assistant",
+    kind: "experience",
+    title: "Kendriya Hindi Sansthan — Research Assistant (Technical), AI/ML Engineer",
+    summary:
+      "Current full-time role since March 2025 on an ICSSR-funded AI education project: built ATAL AI 2.0 and the Hindi Semantic Search engine, and led field research in Assam.",
+    tags: ["Kendriya Hindi Sansthan", "KHS", "Research Assistant", "AI/ML Engineer", "ICSSR", "ATAL AI", "Semantic Search", "Field Research", "Power BI", "Education"],
+    body: `Bhanu's current job: Research Assistant (Technical) and AI/ML Engineer at Kendriya Hindi Sansthan, Ministry of Education, in Agra. Full-time since March 2025, on the ICSSR-funded "AI Based Remedial Education Model" under ATAL AI — Vision Viksit Bharat @2047. There he architected and built ATAL AI 2.0, an offline-first learning PWA (Next.js 16, React 19, TypeScript, Supabase with pgvector). He built a multilingual Hindi Semantic Search engine over 1,633 books (MiniLM-L12-v2 embeddings in ChromaDB, LangChain LCEL RAG Q&A with Groq LLaMA, and a CrewAI multi-agent metadata pipeline). He led field research across 6 government schools in Assam covering 570+ students; his résumé reports 50–65% student adoption in pilot comparisons against existing digital learning platforms. He built data pipelines and Power BI dashboards for stakeholder reporting, reviewed 22 research papers, and contributed to an edited book on AI-enabled education.`,
+    links: [{ label: "ATAL AI 2.0 code", href: `${GITHUB}/ATAL-AI-2.0` }],
+    anchor: "experience-khs",
+    prompt: "What is his current job, and what has he built there?",
+    aliases: ["current", "job", "employer", "now", "present", "government", "ministry", "institute", "fieldwork", "field", "research", "dashboards", "reporting", "full-time"],
+    basis: "resume",
+  },
+  {
+    id: "assam-field-research",
+    kind: "research",
+    title: "Field research and the ATAL AI pilot in Assam",
+    summary:
+      "Led field research across 6 government schools in Assam covering 570+ students, with 50–65% student adoption reported in pilot comparisons.",
+    tags: ["Field Research", "Pilot", "Assam", "Schools", "Students", "Adoption", "Education", "ATAL AI", "ICSSR"],
+    body: `As part of the ICSSR-funded "AI Based Remedial Education Model" at Kendriya Hindi Sansthan, Bhanu led field research across 6 government schools in Assam covering 570+ students, where ATAL AI 2.0 was piloted. His résumé reports 50–65% student adoption in pilot comparisons against existing digital learning platforms. This figure is self-reported; what was measured and how is not documented on this site, so ask him for the study details. Around the pilot he built data pipelines and Power BI dashboards for stakeholder reporting, reviewed 22 research papers, and contributed to an edited book on AI-enabled education. He presented the ATAL AI web app at the ICALS conference in September 2025.`,
+    anchor: "experience-khs",
+    prompt: "What happened when ATAL AI 2.0 was piloted with 570+ students?",
+    aliases: ["pilot", "piloted", "fieldwork", "field", "rural", "study", "survey", "outcomes", "results", "impact", "users", "happened", "evidence", "real"],
+    basis: "resume",
+  },
+  {
+    id: "bytical-ai",
+    kind: "experience",
+    title: "Bytical.ai — Machine Learning Intern",
+    summary:
+      "Internship, July to December 2024: OCR document pipeline over 3,482 files, the first Smart HR Tool, and an Azure OpenAI sentiment-analysis platform.",
+    tags: ["Bytical.ai", "Bytical", "Internship", "OCR", "OpenCV", "PyTesseract", "Azure OpenAI", "Sentiment Analysis", "FastAPI", "Streamlit", "Computer Vision"],
+    body: `At Bytical.ai (Gurugram, Haryana, remote; internship, July to December 2024) Bhanu was a Machine Learning Intern. He built an automated document-processing pipeline over 3,482 files with 95%+ OCR accuracy and sub-second query responses, using OpenCV denoising, binarisation and contour detection with PyTesseract. He built an AI Smart HR Tool on FastAPI and Streamlit that generates job letters, job descriptions and onboarding plans; his résumé reports it cut HR workload 50%, improved content accuracy 30% and reduced time-to-hire 25%. He created an Azure OpenAI sentiment-analysis platform processing 100 comments per minute, which his résumé reports reduced manual review time 70% and improved accuracy 25%. These figures are self-reported on his résumé; the measurement method is not documented here.`,
+    anchor: "experience-bytical",
+    prompt: "What did he do during his internship at Bytical.ai?",
+    aliases: ["intern", "internship", "first", "ocr", "scanned", "sentiment", "comments", "azure", "document", "documents"],
+    basis: "resume",
+  },
+  {
+    id: "skills-genai-rag",
+    kind: "skill",
+    title: "Skills — GenAI, LLMs, RAG and vector search",
+    summary:
+      "LLM APIs and frameworks, plus the retrieval stack: LangChain, ChromaDB, pgvector, Milvus, FAISS and MiniLM embeddings.",
+    tags: ["GenAI", "LLM", "OpenAI", "GPT-4o", "Azure OpenAI", "Groq", "Ollama", "Hugging Face", "Prompt Engineering", "Pydantic", "RAG", "LangChain", "ChromaDB", "pgvector", "Milvus", "FAISS", "Semantic Search", "TF-IDF"],
+    body: `Skills listed on his résumé. GenAI & LLMs: ${SKILL("GenAI & LLMs")}. RAG & vector search: ${SKILL("RAG & vector search")}. Where they were used: ChromaDB in the Hindi Semantic Search System (with MiniLM-L12-v2 embeddings) and at Testneo; pgvector in ATAL AI 2.0; Milvus in the Custom Document AI Chatbot; FAISS in the Sales Pitch Generator; GPT-4o at Aura AI; Azure OpenAI at Bytical.ai; Ollama in the Smart HR Tool. PyTorch is not listed on his résumé; his deep learning work uses TensorFlow/Keras and Hugging Face Transformers.`,
+    anchor: "skills",
+    prompt: "Which LLM and retrieval tools has he used, and in which projects?",
+    aliases: ["skills", "stack", "tools", "technologies", "tech", "vector", "database", "databases", "llms", "models", "frameworks", "pytorch", "gpt"],
+    basis: "resume",
+  },
+  {
+    id: "skills-agents",
+    kind: "skill",
+    title: "Skills — AI agents",
+    summary:
+      "CrewAI multi-agent pipelines, tool integration and retry/backoff, used in the Hindi search metadata pipeline.",
+    tags: ["AI Agents", "CrewAI", "Multi-agent", "Tool Integration", "Tenacity", "Agentic"],
+    body: `AI agents skills listed on his résumé: ${SKILL("AI agents")}. Where they were used: the Hindi Semantic Search System has a CrewAI multi-agent metadata pipeline with three agents, a description generator, a category classifier and a quality validator.`,
+    anchor: "skills",
+    prompt: "What has he built with AI agents?",
+    aliases: ["agents", "agent", "orchestration", "crew", "multiagent", "workflow", "workflows"],
+    basis: "resume",
+  },
+  {
+    id: "skills-ml-vision-speech",
+    kind: "skill",
+    title: "Skills — ML, computer vision, speech and NLP",
+    summary:
+      "TensorFlow/Keras, Scikit-learn, OpenCV, MediaPipe and OCR, plus Deepgram speech-to-text, Indic text-to-speech, spaCy and BART.",
+    tags: ["Machine Learning", "Computer Vision", "TensorFlow", "Keras", "Scikit-learn", "CNN", "OpenCV", "MediaPipe", "OCR", "PyTesseract", "Speech", "Deepgram", "TTS", "NLP", "spaCy", "BART"],
+    body: `Skills listed on his résumé. ML & computer vision: ${SKILL("ML & computer vision")}. Speech & NLP: ${SKILL("Speech & NLP")}. Where they were used: OpenCV and MediaPipe for facial analysis at Aura AI; OpenCV and PyTesseract for the OCR pipeline at Bytical.ai; VGG19 and ResNet50 transfer learning in Eye Disease Classification; Deepgram in the Voice AI Assistant; indic-parler-tts in ATAL AI 2.0; spaCy and BART in the Custom Document AI Chatbot.`,
+    anchor: "skills",
+    prompt: "Show me his computer vision and speech work.",
+    aliases: ["vision", "cv", "image", "images", "deep", "learning", "ml", "speech", "voice", "nlp", "ocr", "skills"],
+    basis: "resume",
+  },
+  {
+    id: "skills-backend-cloud",
+    kind: "skill",
+    title: "Skills — backend, data, cloud, frontend and analytics",
+    summary:
+      "Python and FastAPI backends with Celery, Redis and PostgreSQL; Docker and AWS; TypeScript, React, Next.js and React Native; Pandas and Power BI.",
+    tags: ["Python", "FastAPI", "SQLModel", "Celery", "Redis", "REST", "WebSockets", "PostgreSQL", "Supabase", "MySQL", "SQL", "Docker", "AWS", "Vercel", "pytest", "TypeScript", "JavaScript", "React", "Next.js", "React Native", "Tailwind CSS", "Pandas", "Power BI"],
+    body: `Skills listed on his résumé. Backend & data: ${SKILL("Backend & data")}. Cloud & DevOps: ${SKILL("Cloud & DevOps")}. Frontend: ${SKILL("Frontend")}. Analytics: ${SKILL("Analytics")}. Where they were used: FastAPI, PostgreSQL, Redis, Celery and Docker in the Aura AI backend; FastAPI in the Voice AI Assistant and Smart HR Tool; Supabase and Next.js in ATAL AI 2.0; React Native at Aura AI; Power BI dashboards at Kendriya Hindi Sansthan. AWS (ECS/Fargate) is listed on his résumé, but no project described here documents where it was used.`,
+    anchor: "skills",
+    prompt: "What is his backend and deployment experience?",
+    aliases: ["backend", "server", "api", "apis", "database", "databases", "cloud", "deployment", "deploy", "devops", "frontend", "full-stack", "fullstack", "web", "mobile", "analytics", "dashboards", "skills", "aws"],
+    basis: "resume",
+  },
+  {
+    id: "publications",
+    kind: "research",
+    title: "Publications",
+    summary:
+      "A book chapter on Hindi library automation with semantic search (ILA, 2026) and a journal article on AI and human creativity (Shodh Bhumi, 2025).",
+    tags: ["Publications", "Research", "Book Chapter", "Journal Article", "ILA", "Shodh Bhumi", "Semantic Search"],
+    body: `Bhanu has 2 publications. (1) Rana, B. P., & Mandusia, A. K. (2026). "Transforming Hindi Library Automation: Semantic Search and AI-Enhanced Metadata." Book chapter, 71st Annual ILA International Conference Proceedings, Indian Library Association, New Delhi & Kendriya Hindi Sansthan, Agra, p. 302. He is first author. (2) Kumari, S., Rana, B. P., & Tripathi, M. (2025). "Artificial Intelligence and Human Creativity: A Collaborative or Inhibitory Relationship." Shodh Bhumi, ISSN 3048-6203, Vol. 2, Issue 2, pp. 672–690. He is second author. His résumé does not state whether these venues are peer-reviewed.`,
+    anchor: "publications",
+    prompt: "What has he published?",
+    aliases: ["papers", "paper", "published", "publication", "journal", "chapter", "author", "writing", "academic", "research", "peer-reviewed"],
+    basis: "publication",
+  },
+  {
+    id: "conference-presentations",
+    kind: "research",
+    title: "Conference presentations and the Best Paper Award",
+    summary:
+      "Two conference presentations in 2025, including a Best Paper Award (Technical Session 8) at a national AI and law conference.",
+    tags: ["Conference", "Presentation", "Best Paper Award", "AI and Law", "Neuromorphic Computing", "Sustainability", "ICALS"],
+    body: `Bhanu has 2 conference presentations. (1) Kumari, S., Kumar, A., & Rana, B. P. "Emerging AI Applications for Legal Self-Help in India." National Conference on the Intersection of AI and Law, Amity Law School, Chhattisgarh, August 2025. It received the Best Paper Award, Technical Session 8; he is a co-author (third author). (2) Rana, B. P. "AI, Technology & Sustainability: A Comparative Study of Neuromorphic Computing and the ATAL AI Web App." 1st International Conference on AI, Law and Sustainability (ICALS), Manipal University Jaipur, with UENP (Brazil) and Nicolaus Copernicus University (Poland), September 2025. He is the sole author.`,
+    anchor: "publications",
+    prompt: "Tell me about his conference presentations and the Best Paper Award.",
+    aliases: ["award", "awards", "talks", "talk", "presented", "conferences", "prize", "recognition", "research"],
+    basis: "publication",
+  },
+  {
+    id: "education",
+    kind: "education",
+    title: "Education",
+    summary:
+      "M.Tech in Computational Science from Dayalbagh Educational Institute, Agra (CGPA 8.1), after a PG Diploma, an ITI certificate and a B.Sc.",
+    tags: ["Education", "M.Tech", "Computational Science", "Dayalbagh Educational Institute", "DEI", "PG Diploma", "Big Data", "ITI", "B.Sc"],
+    body: `Bhanu's education, where he studied and his degrees: M.Tech in Computational Science, Dayalbagh Educational Institute, Agra (September 2022 to June 2024), CGPA 8.1. PG Diploma in Big Data & Logistics, Dayalbagh Educational Institute, Agra (September 2021 to August 2022), CGPA 6.8. ITI in Computer Operator & Programming Assistant (COPA), Govt. ITI, Bijnor (August 2020 to August 2021), CGPA 8.8. B.Sc in Physics, Chemistry and Mathematics, MJP Rohilkhand University, Bareilly (August 2017 to October 2020), CGPA 6.0.`,
+    anchor: "background",
+    prompt: "Where did he study, and what are his degrees?",
+    aliases: ["study", "studied", "degree", "degrees", "university", "college", "qualification", "qualifications", "masters", "master", "graduate", "cgpa", "grades", "academic"],
+    basis: "resume",
+  },
+  {
+    id: "certifications",
+    kind: "education",
+    title: "Certifications",
+    summary:
+      "Oracle OCI 2025 AI Foundations Associate, Generative AI Mastermind, Full Stack Web Development, and AWS Cloud Practitioner Essentials.",
+    tags: ["Certifications", "Oracle", "OCI", "AWS", "Outskill", "Apna College"],
+    body: `Certifications listed on his résumé: OCI 2025 Certified AI Foundations Associate, Oracle (2025). Generative AI Mastermind, Outskill (2025). Full Stack Web Development (Delta), Apna College (2025). AWS Cloud Practitioner Essentials, AWS (2024).`,
+    anchor: "background",
+    prompt: "Which certifications does he hold?",
+    aliases: ["certificates", "certificate", "certified", "certification", "courses", "course", "training"],
+    basis: "resume",
+  },
+  {
+    id: "achievements",
+    kind: "education",
+    title: "Achievements",
+    summary:
+      "Best Paper Award (2025), Best Project Showcase, Best Performer Student and Student of the Year.",
+    tags: ["Achievements", "Awards", "Best Paper Award", "Honours"],
+    body: `Achievements listed on his résumé: Best Paper Award, Amity Law School (2025), for a co-authored paper at the National Conference on the Intersection of AI and Law. Best Project Showcase, Govt. ITI, Bijnor. Best Performer Student, MIET Kumaun. Student of the Year, LIC.`,
+    anchor: "background",
+    prompt: "What awards has he received?",
+    aliases: ["honours", "honors", "recognition", "prizes", "award", "won", "achievement"],
+    basis: "resume",
+  },
+  {
+    id: "volunteer",
+    kind: "experience",
+    title: "Volunteering — Sahitya Unnayan Sansthan",
+    summary:
+      "Programmer & Media Manager (volunteer) for a Hindi literary and social-development NGO in Chandausi since April 2026.",
+    tags: ["Volunteer", "NGO", "Sahitya Unnayan Sansthan", "Hindi", "Media", "Community"],
+    body: `Since April 2026 Bhanu volunteers as Programmer & Media Manager at Sahitya Unnayan Sansthan, Chandausi, a Hindi literary and social-development NGO. He leads its technology and digital media: digital platforms, outreach and AI-tool adoption.`,
+    anchor: "background",
+    prompt: "Does he volunteer anywhere?",
+    aliases: ["volunteering", "volunteers", "community", "literary", "literature", "social", "nonprofit", "non-profit", "outside", "extracurricular"],
+    basis: "resume",
+  },
+  {
+    id: "contact",
+    kind: "profile",
+    title: "Contact and availability",
+    summary:
+      "Email ranabhanu514@gmail.com, or reach him on LinkedIn or GitHub. The résumé PDF is on this site.",
+    tags: ["Contact", "Email", "LinkedIn", "GitHub", "Résumé", "Availability"],
+    body: `To contact Bhanu: email ranabhanu514@gmail.com, or message him on LinkedIn (linkedin.com/in/bhanu-pratap-rana). His code is on GitHub (github.com/bhanu-pratap-rana). His résumé can be downloaded as a PDF from this site. He is based in Agra, Uttar Pradesh, India. His phone number is on the résumé PDF and is not given by this assistant. Notice period, salary expectations, relocation and remote-work preferences are not stated on his résumé: ask him by email.`,
+    links: [
+      { label: "Email", href: `mailto:${profile.email}` },
+      { label: "LinkedIn", href: profile.linkedin },
+      { label: "GitHub", href: profile.github },
+      { label: "Résumé (PDF)", href: profile.resumePath },
+    ],
+    anchor: "contact",
+    prompt: "How do I contact him and get his résumé?",
+    aliases: ["reach", "email", "mail", "phone", "call", "message", "resume", "cv", "hire", "hiring", "interview", "available", "availability", "notice", "relocation", "relocate", "remote", "linkedin"],
+    basis: "resume",
+  },
+  {
+    id: "this-copilot",
+    kind: "project",
+    title: "How this copilot works",
+    summary:
+      "This site's assistant: a keyword-and-tag retriever over about two dozen hand-written notes, a Groq-hosted model, and cited answers. No vector database.",
+    tags: ["This site", "Copilot", "RAG", "Retrieval", "Citations", "Next.js", "Groq", "Evaluation"],
+    body: `This portfolio's copilot is a small retrieval-augmented system that Bhanu built with Next.js 16 and TypeScript. The knowledge base is about two dozen hand-written notes drawn from his résumé and public repositories. Retrieval is lexical: each question is tokenised, expanded with a small synonym and Hindi-to-English word list, and scored against each note's title, tags and text. It is keyword and tag matching, not embeddings and not a vector database. The whole knowledge base would fit in the model's prompt, so retrieval is not needed for capacity. It is kept because a short numbered list of notes makes every citation checkable, keeps each request inside a small token budget, and is the layer that would be swapped for embeddings if the corpus grew. The project where he did use embeddings and a vector database is the Hindi Semantic Search System (MiniLM and ChromaDB). The top notes are sent with the question to a Groq-hosted open model, which answers with numbered citations. The same scoring function runs in the browser, which is how the index lights up while you type. If the model is unavailable, the site answers from the matching notes directly and says so. Retrieval is checked by golden questions in English, Hindi and Roman-script Hindi: the test suite runs them in CI, and the page recomputes and prints the result on every build.`,
+    links: [{ label: "Source code", href: `${GITHUB}/Bhanu` }],
+    anchor: "how",
+    prompt: "How does this copilot retrieve and cite, and why no vector database?",
+    aliases: ["copilot", "assistant", "chatbot", "bot", "site", "website", "portfolio", "works", "retrieve", "cite", "citations", "lexical", "keyword", "vector", "database", "architecture", "built"],
+    basis: "site",
+  },
+];
+
+/**
+ * A note's name for chips, captions and lists. The four skill notes share the
+ * "Skills" prefix, so they keep their first group to stay distinguishable.
+ */
+export function shortTitle(item: KnowledgeItem): string {
+  const [head, tail] = item.title.split(" — ");
+  return head === "Skills" && tail ? `Skills: ${tail.split(",")[0]}` : head;
+}
+
+export function getKnowledgeItem(id: string): KnowledgeItem | undefined {
+  return knowledgeBase.find((item) => item.id === id);
+}
+
+export function getProjectDetail(project: Project): KnowledgeItem | undefined {
+  return getKnowledgeItem(project.kbId);
+}
+
+/* ------------------------------------------------------------------ */
+/* Starter questions                                                    */
+/* ------------------------------------------------------------------ */
+
+export type Starter = { question: string; lang?: "hi" };
+
+export const starterQuestions: Starter[] = [
+  { question: "Summarise Bhanu in 30 seconds: role, experience and location." },
+  { question: "How does the Hindi Semantic Search pipeline work, end to end?" },
+  { question: "What happened when ATAL AI 2.0 was piloted with 570+ students?" },
+  { question: "भानु ने हिंदी के लिए कौन-कौन से AI प्रोजेक्ट बनाए हैं?", lang: "hi" },
+  { question: "How does this copilot retrieve and cite, and why no vector database?" },
+];
+
+/** Prefilled into the composer; the visitor pastes the description after it. */
+export const jobDescriptionPrompt =
+  "Compare Bhanu against this job description. List what is evidenced, what is adjacent, and what is not on his résumé:\n\n";
