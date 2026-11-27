@@ -8,7 +8,6 @@ import { Composer } from "@/components/chat/Composer";
 import { IndexLattice } from "@/components/chat/IndexLattice";
 import { NoteDetail } from "@/components/chat/NoteDetail";
 import { Thread } from "@/components/chat/Thread";
-import { langOf } from "@/lib/lang";
 import { NOTE_COUNT } from "@/lib/chat-store";
 import {
   getKnowledgeItem,
@@ -74,7 +73,6 @@ export function CopilotPanel({
       state.messages.filter((message) => message.kind === "question").length,
   );
   const busy = useChat((state) => state.status !== "idle");
-  const announcement = useChat((state) => state.announcement);
   const [expanded, setExpanded] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [browsing, setBrowsing] = useState(false);
@@ -110,10 +108,15 @@ export function CopilotPanel({
     thread.scrollTop = target;
     // A control that sent the question may have been removed (a starter or a
     // follow-up); keep keyboard focus in the copilot instead of losing it.
-    if (document.activeElement === document.body) {
+    // Only for a question asked just now: a thread restored on page load must
+    // not pull focus into the copilot before the visitor has done anything.
+    if (
+      store.getState().status !== "idle" &&
+      document.activeElement === document.body
+    ) {
       latest.querySelector<HTMLElement>("[tabindex]")?.focus({ preventScroll: true });
     }
-  }, [questionCount]);
+  }, [questionCount, store]);
 
   return (
     <section className="copilot-panel" aria-labelledby={titleId}>
@@ -251,10 +254,6 @@ export function CopilotPanel({
           .
         </p>
       </footer>
-
-      <p role="status" className="sr-only" lang={langOf(announcement)}>
-        {announcement}
-      </p>
     </section>
   );
 }

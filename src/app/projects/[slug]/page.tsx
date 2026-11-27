@@ -8,6 +8,7 @@ import {
   getProjectDetail,
   projects,
 } from "@/lib/knowledge";
+import { baseOpenGraph, workAnchorHref } from "@/lib/site";
 
 // Only the listed slugs exist; anything else is a 404, not a render attempt.
 export const dynamicParams = false;
@@ -28,10 +29,22 @@ export async function generateMetadata({
     title: project.name,
     description: project.summary,
     alternates: { canonical: `/projects/${project.slug}` },
+    // openGraph replaces the layout's wholesale (shallow merge), and the root
+    // opengraph-image file only fills images at its own level, so the shared
+    // fields and the image are restated. twitter is set too, or it keeps the
+    // layout's home-page title and description.
     openGraph: {
+      ...baseOpenGraph,
       title: project.name,
       description: project.summary,
       url: `/projects/${project.slug}`,
+      images: ["/opengraph-image"],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: project.name,
+      description: project.summary,
+      images: ["/opengraph-image"],
     },
   };
 }
@@ -52,7 +65,7 @@ export default async function ProjectPage({
     <main id="main" tabIndex={-1} className="measure pt-6 outline-none lg:pt-12">
       <p>
         <Link
-          href={`/#work-${project.slug}`}
+          href={workAnchorHref(project)}
           className="link tap inline-flex items-center text-[15px] text-muted"
         >
           Back to all work

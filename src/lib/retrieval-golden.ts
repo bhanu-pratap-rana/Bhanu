@@ -22,6 +22,8 @@ export type RetrievalEval = {
   misses: { q: string; expected: string[]; got: string[] }[];
   byLang: Record<GoldenLang, { total: number; hits: number }>;
   offTopic: { total: number; clean: number };
+  /** The same off-topic questions, each asked after every on-topic opener. */
+  offTopicFollowUp: { total: number; clean: number };
 };
 
 // Cards whose own prompt names the thing it describes: the card must be first.
@@ -158,10 +160,25 @@ export const offTopicQuestions: string[] = [
   "ek chutkula sunao",
 ];
 
+/**
+ * First turns that do retrieve something. An off-topic second turn must still
+ * return nothing: the follow-up rule may not hand it the opener's cards.
+ */
+export const onTopicOpeners: string[] = [
+  "Tell me about ATAL AI",
+  "How did he build Aura AI?",
+  "Who is Bhanu?",
+  "उनका अनुभव क्या है?",
+  "unka anubhav kya hai?",
+];
+
 const SHOWN_ON_MISS = 3;
 
-/** Scores any ranker (question → card ids, best first) against the fixtures. */
-export function evaluateRanker(rank: (question: string) => string[]): RetrievalEval {
+/**
+ * Scores any ranker (the thread's user messages, oldest first → card ids,
+ * best first) against the fixtures.
+ */
+export function evaluateRanker(rank: (messages: string[]) => string[]): RetrievalEval {
   const result: RetrievalEval = {
     total: goldenQuestions.length,
     hits: 0,
@@ -172,10 +189,11 @@ export function evaluateRanker(rank: (question: string) => string[]): RetrievalE
       hinglish: { total: 0, hits: 0 },
     },
     offTopic: { total: offTopicQuestions.length, clean: 0 },
+    offTopicFollowUp: { total: offTopicQuestions.length * onTopicOpeners.length, clean: 0 },
   };
 
   for (const { q, expect, within, lang } of goldenQuestions) {
-    const ids = rank(q);
+    const ids = rank([q]);
     const hit = ids.slice(0, within).some((id) => expect.includes(id));
     result.byLang[lang].total += 1;
     if (hit) {
@@ -187,8 +205,13 @@ export function evaluateRanker(rank: (question: string) => string[]): RetrievalE
   }
 
   for (const q of offTopicQuestions) {
-    if (rank(q).length === 0) {
+    if (rank([q]).length === 0) {
       result.offTopic.clean += 1;
+    }
+    for (const opener of onTopicOpeners) {
+      if (rank([opener, q]).length === 0) {
+        result.offTopicFollowUp.clean += 1;
+      }
     }
   }
 
@@ -197,7 +220,7 @@ export function evaluateRanker(rank: (question: string) => string[]): RetrievalE
 
 /** Runs the real retriever. Pure and cheap: the page renders its result. */
 export function evaluateRetrieval(): RetrievalEval {
-  return evaluateRanker((question) =>
-    retrieve({ userMessages: [question] }).ranked.map(({ item }) => item.id),
+  return evaluateRanker((messages) =>
+    retrieve({ userMessages: messages }).ranked.map(({ item }) => item.id),
   );
 }

@@ -5,7 +5,12 @@ import { useEffect, useRef, useState } from "react";
 import { useChatStore } from "@/components/chat/ChatProvider";
 import { useIndexView } from "@/components/chat/IndexLattice";
 import type { Core, CoreColors } from "@/components/scene/core-renderer";
-import { PAUSE_KEY, sceneBus, useSceneBus } from "@/components/scene/scene-bus";
+import {
+  type CoreStatus,
+  PAUSE_KEY,
+  sceneBus,
+  useSceneBus,
+} from "@/components/scene/scene-bus";
 import { NOTE_COUNT } from "@/lib/chat-store";
 import { axialToWorld, hexSpiral, ringOf } from "@/lib/honeycomb";
 import {
@@ -14,7 +19,7 @@ import {
   shortTitle,
   starterQuestions,
 } from "@/lib/knowledge";
-import { demoFrames, glowTargets, sectionTargets } from "@/lib/scene-state";
+import { coreGlow, demoFrames, sectionTargets } from "@/lib/scene-state";
 
 const IDS = knowledgeBase.map((item) => item.id);
 const ANCHORS = knowledgeBase.map((item) => item.anchor);
@@ -75,6 +80,16 @@ function inHeroSpace(target: EventTarget | null): boolean {
   return target.id === "top" || target.closest("[data-core-stage]") !== null;
 }
 
+/**
+ * Tell the hero whether the core is there. The attribute on <html> lets CSS
+ * collapse the hero's empty stage when it will never draw.
+ */
+function markCore(status: CoreStatus) {
+  sceneBus.set({ core: status });
+  if (status === "pending") delete document.documentElement.dataset.core;
+  else document.documentElement.dataset.core = status;
+}
+
 type Tip = { title: string; x: number; y: number };
 
 /**
@@ -94,21 +109,22 @@ export function MemoryCore() {
   const pathname = usePathname();
   const { view } = useIndexView();
   const demo = useSceneBus((s) => s.demo);
+  const heroInView = useSceneBus((s) => s.heroInView);
   const motionOff = useSceneBus((s) => s.paused || s.reduced);
   // The pause control lives in the hero, so pages without one hold still.
   const still = motionOff || pathname !== "/";
   const [ready, setReady] = useState(false);
   const [tip, setTip] = useState<Tip | null>(null);
 
-  // What the copilot touched. At rest the idle demo stands in for it.
+  // What the copilot touched. At rest the idle demo stands in for it, but
+  // only beside the hero's readout: a project page, or the page below the
+  // hero, would otherwise light warm notes that outshine its own.
   useEffect(() => {
-    const glow =
-      view.phase === "rest"
-        ? DEMO[demo % DEMO.length].glow
-        : glowTargets(view, IDS);
+    const demoShowing = pathname === "/" && heroInView;
+    const glow = coreGlow(view, IDS, DEMO[demo % DEMO.length].glow, demoShowing);
     glowRef.current.set(glow);
     coreRef.current?.inputs.glow.set(glow);
-  }, [view, demo]);
+  }, [view, demo, pathname, heroInView]);
 
   useEffect(() => {
     stillRef.current = still;
@@ -167,7 +183,11 @@ export function MemoryCore() {
     // core, and a coloured 3D scene has no place there anyway.
     const forced = window.matchMedia("(forced-colors: active)").matches;
     if (forced || !supportsWebGL2()) {
-      return () => reducedQuery.removeEventListener("change", onReduced);
+      markCore("off");
+      return () => {
+        reducedQuery.removeEventListener("change", onReduced);
+        markCore("pending");
+      };
     }
 
     let cancelled = false;
@@ -250,7 +270,10 @@ export function MemoryCore() {
       import("@/components/scene/core-renderer")
         .then(({ createCore }) => {
           if (cancelled || !canvas) return;
-          core = createCore(canvas, LAYOUT, () => setReady(true));
+          core = createCore(canvas, LAYOUT, () => {
+            setReady(true);
+            markCore("on");
+          });
           coreRef.current = core;
           core.setColors(readColors());
           core.inputs.glow.set(glowRef.current);
@@ -316,7 +339,8 @@ export function MemoryCore() {
           });
         })
         .catch(() => {
-          /* the page is complete without the core */
+          // The page is complete without the core; it just stops promising one.
+          if (!cancelled) markCore("off");
         });
     }
 
@@ -333,6 +357,8 @@ export function MemoryCore() {
       cleanups.forEach((cleanup) => cleanup());
       core?.dispose();
       coreRef.current = null;
+      // A remount (Strict Mode, Fast Refresh) boots afresh and reports again.
+      markCore("pending");
     };
   }, []);
 

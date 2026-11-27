@@ -122,7 +122,9 @@ const Answer = memo(function Answer({
         >
           {sources.length > 0
             ? `Pulled ${sources.length} of ${NOTE_COUNT} notes`
-            : "No note matched, so the model saw only the one-line index"}
+            : message.sourcesUnknown
+              ? "The notes behind this answer cannot be shown on this version of the page. Reload to see them"
+              : "No note matched, so the model saw only the one-line index"}
           {message.reusedPrevious
             ? ", kept from your previous question because this one had no new keywords."
             : "."}
@@ -253,7 +255,9 @@ const Answer = memo(function Answer({
               <p>
                 {sources.length > 0
                   ? `The model was given ${sources.length} notes in full, chosen by keyword and tag match, plus a one-line index of all ${NOTE_COUNT}.`
-                  : `No note matched, so the model was given only a one-line index of all ${NOTE_COUNT} notes.`}
+                  : message.sourcesUnknown
+                    ? "The server used notes this version of the page does not know, so they cannot be listed here. Reload the page to see them."
+                    : `No note matched, so the model was given only a one-line index of all ${NOTE_COUNT} notes.`}
               </p>
               {sources.length > 0 ? (
                 <ol className="space-y-0.5">
@@ -327,8 +331,9 @@ const Answer = memo(function Answer({
 
 function Notice({ message }: Readonly<{ message: ChatMessage }>) {
   return (
+    // Not a live region: the store announces the same text through the one
+    // always-mounted status line, so it is heard once, dialog open or not.
     <p
-      role="alert"
       className="border-l-2 border-danger pl-3 text-[15px] leading-[1.5] text-ink"
     >
       {message.content}

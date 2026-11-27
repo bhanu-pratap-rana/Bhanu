@@ -1,5 +1,10 @@
-import { describe, expect, it } from "vitest";
-import { openModelStream, parseSseDeltas, textStream } from "./groq-stream";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  CUT_OFF_SUFFIX,
+  openModelStream,
+  parseSseDeltas,
+  textStream,
+} from "./groq-stream";
 
 const encoder = new TextEncoder();
 
@@ -14,6 +19,21 @@ const EMPTY_DELTA = `data: ${JSON.stringify({
   choices: [{ delta: { content: "" } }],
 })}\n\n`;
 const DONE = "data: [DONE]\n\n";
+const finish = (reason: string) =>
+  `data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: reason }] })}\n\n`;
+const STOP = finish("stop");
+const LENGTH_STOP = finish("length");
+
+let warnings: unknown[][];
+beforeEach(() => {
+  warnings = [];
+  vi.spyOn(console, "warn").mockImplementation((...args: unknown[]) => {
+    warnings.push(args);
+  });
+});
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 type Upstream = {
   body: ReadableStream<Uint8Array>;
@@ -96,7 +116,16 @@ describe("parseSseDeltas", () => {
       rest: "",
       done: false,
       failed: false,
+      truncated: false,
     });
+  });
+
+  it("reports a token-limit stop, even when [DONE] follows in the same buffer", () => {
+    const parsed = parseSseDeltas(frame("a") + LENGTH_STOP + DONE);
+    expect(parsed.deltas).toEqual(["a"]);
+    expect(parsed.done).toBe(true);
+    expect(parsed.truncated).toBe(true);
+    expect(parseSseDeltas(frame("a") + STOP + DONE).truncated).toBe(false);
   });
 
   it("keeps an incomplete trailing frame as the remainder", () => {
@@ -187,7 +216,13 @@ describe("parseSseDeltas", () => {
 
   it("reports an error event even when its payload is not JSON", () => {
     const parsed = parseSseDeltas("event: error\ndata: upstream timeout\n\n");
-    expect(parsed).toEqual({ deltas: [], rest: "", done: false, failed: true });
+    expect(parsed).toEqual({
+      deltas: [],
+      rest: "",
+      done: false,
+      failed: true,
+      truncated: false,
+    });
   });
 
   it("holds back a lone trailing CR until the next chunk decides what it is", () => {
@@ -400,22 +435,81 @@ describe("openModelStream", () => {
     expect(result).toEqual({ ok: false, reason: "error" });
   });
 
-  it("emits the text it has, then closes cleanly, when the upstream fails mid-answer", async () => {
+  it("emits the text it has, marks it cut off, then closes cleanly, when the upstream fails mid-answer", async () => {
     const { result } = await open([frame("partial"), frame(" answer")], true);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     // readAll rejects if the stream errors instead of closing.
-    expect(await readAll(result.stream)).toBe("partial answer");
+    expect(await readAll(result.stream)).toBe("partial answer" + CUT_OFF_SUFFIX);
+    expect(JSON.stringify(warnings)).toMatch(/read-error/);
   });
 
-  it("closes cleanly on an in-stream error frame after partial output", async () => {
+  it("adds no notice and logs nothing when the visitor stopped the answer", async () => {
+    const source = upstream([frame("only this")], { failAfter: true });
+    let gone = false;
+    const result = await openModelStream(source.body, { isClientGone: () => gone });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    gone = true;
+    expect(await readAll(result.stream)).toBe("only this");
+    expect(warnings).toEqual([]);
+  });
+
+  it("marks the answer cut off when the body errors right after one delta", async () => {
+    const { result } = await open([frame("only this")], true);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(await readAll(result.stream)).toBe("only this" + CUT_OFF_SUFFIX);
+  });
+
+  it("marks the answer cut off on an in-stream error frame after partial output", async () => {
     const errorFrame = `data: ${JSON.stringify({
       error: { message: "over capacity" },
     })}\n\n`;
     const { result } = await open([frame("partial"), errorFrame, frame("x")]);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(await readAll(result.stream)).toBe("partial");
+    expect(await readAll(result.stream)).toBe("partial" + CUT_OFF_SUFFIX);
+  });
+
+  it("marks the answer cut off when the error frame shares the first text's chunk", async () => {
+    const errorFrame = `data: ${JSON.stringify({ error: { message: "x" } })}\n\n`;
+    const { result } = await open([frame("early") + errorFrame]);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(await readAll(result.stream)).toBe("early" + CUT_OFF_SUFFIX);
+  });
+
+  it("marks the answer cut off when the model hit its token limit", async () => {
+    const { result } = await open([frame("long"), frame(" answer"), LENGTH_STOP, DONE]);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(await readAll(result.stream)).toBe("long answer" + CUT_OFF_SUFFIX);
+    expect(JSON.stringify(warnings)).toMatch(/length/);
+  });
+
+  it("marks the answer cut off when the buffer overflows after partial output", async () => {
+    const junk = "x".repeat(64 * 1024);
+    const { result } = await open([frame("start"), ...Array.from({ length: 8 }, () => junk)]);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(await readAll(result.stream)).toBe("start" + CUT_OFF_SUFFIX);
+    expect(JSON.stringify(warnings)).toMatch(/overflow/);
+  });
+
+  it("adds no suffix to an answer that ends with [DONE]", async () => {
+    const { result } = await open([frame("whole"), frame(" answer"), STOP, DONE]);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(await readAll(result.stream)).toBe("whole answer");
+    expect(warnings).toEqual([]);
+  });
+
+  it("logs no answer text when it marks one cut off", async () => {
+    const { result } = await open([frame("SECRET partial")], true);
+    if (!result.ok) throw new Error("expected a stream");
+    await readAll(result.stream);
+    expect(JSON.stringify(warnings)).not.toMatch(/SECRET/);
   });
 
   it("cancels the upstream when the consumer cancels", async () => {

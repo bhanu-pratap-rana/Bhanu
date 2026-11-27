@@ -1,6 +1,20 @@
 "use client";
 
-export default function Error({ reset }: { error: Error; reset: () => void }) {
+import { useEffect } from "react";
+
+// unstable_retry re-fetches the segment before re-rendering it, so a failed
+// server render can recover; reset only re-renders what already failed.
+export default function Error({
+  error,
+  unstable_retry,
+}: {
+  error: Error & { digest?: string };
+  unstable_retry: () => void;
+}) {
+  useEffect(() => {
+    console.error(error);
+  }, [error]);
+
   return (
     <main
       id="main"
@@ -9,15 +23,15 @@ export default function Error({ reset }: { error: Error; reset: () => void }) {
     >
       <h1 className="display text-[36px]">This page failed to load</h1>
       <p className="text-muted">
-        Something broke while drawing it. Reload to try again. Any conversation
-        with the copilot is saved in this browser.
+        Something broke while drawing it. Try again to load it afresh. Any
+        conversation with the copilot is saved in this browser.
       </p>
       <button
         type="button"
-        onClick={reset}
+        onClick={() => unstable_retry()}
         className="tap inline-flex items-center rounded-md bg-ink px-4 font-medium text-ground"
       >
-        Reload the page
+        Try again
       </button>
     </main>
   );

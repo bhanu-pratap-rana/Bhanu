@@ -272,6 +272,18 @@
     height: clamp(170px, 28svh, 320px);
   }
 
+  /* No core will draw (forced colours, no WebGL 2, the renderer failed to
+     load): an empty band above the name would read as a broken page. */
+  :root[data-core="off"] .hero-stage {
+    display: none;
+  }
+
+  @media (forced-colors: active) {
+    .hero-stage {
+      display: none;
+    }
+  }
+
   /* Short phones (iPhone SE): a smaller stage keeps the ask field above the fold. */
   @media (max-width: 63.99rem) and (max-height: 720px) {
     .hero-stage {

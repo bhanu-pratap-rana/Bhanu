@@ -69,7 +69,9 @@ async function tryModel(
   messages: { role: string; content: string }[],
   clientSignal: AbortSignal,
   timeoutMs: number,
-  streamStopMs: number,
+  // Absolute, on the performance.now() clock: the time spent waiting for the
+  // first text must count against it, or a slow start outlives maxDuration.
+  streamDeadline: number,
 ): Promise<ModelAttempt> {
   const controller = new AbortController();
   const abort = () => controller.abort();
@@ -110,7 +112,9 @@ async function tryModel(
     }
 
     const opened = response.body
-      ? await openModelStream(response.body)
+      ? await openModelStream(response.body, {
+          isClientGone: () => clientSignal.aborted,
+        })
       : ({ ok: false, reason: "empty" } as const);
     if (clientSignal.aborted) return { ok: false, outcome: "aborted", status: 0 };
     if (!opened.ok) {
@@ -120,7 +124,10 @@ async function tryModel(
 
     streaming = true;
     // Keeps the client-abort link; ends a stalled stream before maxDuration.
-    const stop: unknown = setTimeout(abort, Math.max(0, streamStopMs));
+    const stop: unknown = setTimeout(
+      abort,
+      Math.max(0, streamDeadline - performance.now()),
+    );
     (stop as { unref?: () => void }).unref?.();
     return { ok: true, stream: opened.stream };
   } catch (error) {
@@ -216,6 +223,7 @@ export async function POST(request: Request) {
     ];
 
     const modelsStartedAt = performance.now();
+    const streamDeadline = startedAt + STREAM_STOP_MS;
     let failures = 0;
     let rateLimited = 0;
     let unreachable = 0;
@@ -231,7 +239,7 @@ export async function POST(request: Request) {
         chatMessages,
         request.signal,
         Math.min(ATTEMPT_TIMEOUT_MS, FIRST_TEXT_BUDGET_MS - elapsed),
-        STREAM_STOP_MS - elapsed,
+        streamDeadline,
       );
 
       if (attempt.ok) {

@@ -7,6 +7,7 @@ import {
   STORAGE_KEY,
   type ChatMessage,
 } from "./chat-store";
+import { CUT_OFF_SUFFIX } from "./chat-request";
 import { jobDescriptionPrompt } from "./knowledge";
 
 const encoder = new TextEncoder();
@@ -338,9 +339,115 @@ describe("review fixes", () => {
     expect(store.getState().announcement).toBe("");
   });
 
-  it("announces an error once, through the notice, not the status line too", async () => {
+  it("announces an error once, through the always-mounted status line", async () => {
     const { store } = storeWith(async () => new Response("{}", { status: 500 }));
     await store.ask("What is his current job?");
-    expect(store.getState().announcement).toBe("");
+    const notice = store.getState().messages.at(-1);
+    expect(notice?.kind).toBe("notice");
+    expect(store.getState().announcement).toBe(notice?.content);
+  });
+});
+
+describe("client review fixes", () => {
+  it("keeps focusRequest increasing across resets, so New chat always focuses", () => {
+    const { store } = storeWith(async () => okResponse(["ok"]));
+    const seen: number[] = [];
+    store.requestFocus();
+    seen.push(store.getState().focusRequest);
+    store.reset();
+    store.requestFocus();
+    seen.push(store.getState().focusRequest);
+    store.reset();
+    store.requestFocus();
+    seen.push(store.getState().focusRequest);
+    for (let i = 1; i < seen.length; i += 1) {
+      expect(seen[i]).toBeGreaterThan(seen[i - 1]);
+    }
+  });
+
+  it("drops local sources when X-Sources names a note this build does not know", async () => {
+    const { store } = storeWith(async () =>
+      okResponse(["He designed it on FastAPI [1]."], {
+        "X-Sources": encodeURIComponent(
+          JSON.stringify([{ id: "note-from-a-newer-deploy", title: "t", summary: "s" }]),
+        ),
+        "X-Retrieval": "note-from-a-newer-deploy:14",
+      }),
+    );
+    await store.ask("How did he build Aura AI?");
+    const reply = store.getState().messages[1];
+    expect(reply.sources).toEqual([]);
+    expect(reply.scores).toBeUndefined();
+    expect(reply.matched).toBeUndefined();
+    expect(reply.expansions).toBeUndefined();
+  });
+
+  it("marks the notes as unknown, not unmatched, when X-Sources cannot be read", async () => {
+    const { store } = storeWith(async () =>
+      okResponse(["He designed it on FastAPI [1]."], {
+        "X-Sources": encodeURIComponent(JSON.stringify([{ id: "note-from-a-newer-deploy" }])),
+      }),
+    );
+    await store.ask("How did he build Aura AI?");
+    expect(store.getState().messages[1].sourcesUnknown).toBe(true);
+    expect(store.getState().announcement).not.toContain("citing 0 of 0");
+  });
+
+  it("does not mark the notes unknown when the server sent none at all", async () => {
+    const { store } = storeWith(async () => okResponse(["ok [1]."]));
+    await store.ask("How did he build Aura AI?");
+    expect(store.getState().messages[1].sourcesUnknown).toBeUndefined();
+  });
+
+  it("never sends the cut-off notice back to the model as its own words", () => {
+    const history = historyFor([
+      question,
+      { ...answer, content: `He designed it on FastAPI.${CUT_OFF_SUFFIX}` },
+    ]);
+    expect(history[1].content).toBe("He designed it on FastAPI.");
+  });
+
+  it("drops local sources when X-Sources is present but malformed", async () => {
+    const { store } = storeWith(async () =>
+      okResponse(["ok [1]."], { "X-Sources": "%E0%A4%A" }),
+    );
+    await store.ask("How did he build Aura AI?");
+    expect(store.getState().messages[1].sources).toEqual([]);
+  });
+
+  it("keeps the local list when the server sends no X-Sources at all", async () => {
+    const { store } = storeWith(async () => okResponse(["ok [1]."]));
+    await store.ask("How did he build Aura AI?");
+    expect(store.getState().messages[1].sources).toContain("aura-ai");
+  });
+
+  it("does not overwrite what the visitor is typing when asked while busy", async () => {
+    let release: (value: Response) => void = () => {};
+    const { store } = storeWith(
+      () => new Promise<Response>((resolve) => (release = resolve)),
+    );
+    const first = store.ask("What is his current job?");
+    store.setDraft("my own half-written question");
+    const before = store.getState().focusRequest;
+    await store.ask("Which certifications does he hold?");
+    expect(store.getState().draft).toBe("my own half-written question");
+    expect(store.getState().announcement).toBe("Wait for the current answer to finish.");
+    expect(store.getState().focusRequest).toBe(before + 1);
+    release(okResponse(["Fine."]));
+    await first;
+  });
+
+  it("keeps the draft as-is when the busy ask is the draft itself", async () => {
+    let release: (value: Response) => void = () => {};
+    const { store } = storeWith(
+      () => new Promise<Response>((resolve) => (release = resolve)),
+    );
+    const first = store.ask("What is his current job?");
+    store.setDraft("  Which certifications does he hold?  ");
+    await store.ask("Which certifications does he hold?");
+    expect(store.getState().draft).toBe("Which certifications does he hold?");
+    expect(store.getState().announcement).not.toBe("Wait for the current answer to finish.");
+    release(okResponse(["Fine."]));
+    await first;
   });
 });

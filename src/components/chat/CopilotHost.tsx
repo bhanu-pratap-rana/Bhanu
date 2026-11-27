@@ -8,6 +8,20 @@ import {
   useIsDesktop,
 } from "@/components/chat/ChatProvider";
 import { CopilotPanel } from "@/components/chat/CopilotPanel";
+import { langOf } from "@/lib/lang";
+
+/**
+ * The polite live region for the copilot. It must exist before its text
+ * changes, so it lives here and not in the panel, which phones mount only
+ * while the dialog is open.
+ */
+function Announcer({ text }: Readonly<{ text: string }>) {
+  return (
+    <p role="status" className="sr-only" lang={langOf(text)}>
+      {text}
+    </p>
+  );
+}
 
 /**
  * One panel, two hosts. On wide screens it is a docked column that is always
@@ -20,6 +34,7 @@ export function CopilotHost() {
   const isDesktop = useIsDesktop();
   const open = useChat((state) => state.open);
   const focusRequest = useChat((state) => state.focusRequest);
+  const announcement = useChat((state) => state.announcement);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const handledFocus = useRef(focusRequest);
   const pathname = usePathname();
@@ -56,11 +71,17 @@ export function CopilotHost() {
     store.close();
   }, [pathname, store]);
 
+  // Two copies of one region, never both in the accessibility tree: a modal
+  // dialog makes everything outside it inert, which silences the outer copy,
+  // and a closed dialog is display: none, which silences the inner one. So
+  // each announcement is heard exactly once, whether the dialog is open,
+  // closed, or (on wide screens) never used.
   return (
     <>
       <aside id="copilot" className="copilot-aside" aria-label="Copilot">
         {isDesktop ? <CopilotPanel /> : null}
       </aside>
+      <Announcer text={announcement} />
       <dialog
         ref={dialogRef}
         className="copilot-dialog"
@@ -68,6 +89,7 @@ export function CopilotHost() {
         onClose={() => store.close()}
       >
         {showDialog ? <CopilotPanel inDialog /> : null}
+        <Announcer text={announcement} />
       </dialog>
     </>
   );

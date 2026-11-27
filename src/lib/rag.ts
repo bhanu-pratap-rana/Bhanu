@@ -79,6 +79,7 @@ const OUTER_SIGNS = /^[+#]+|[+#]+$/g;
 // The text ends inside a word: the visitor is still typing it.
 const OPEN_END = /[\p{L}\p{M}\p{N}+#]$/u;
 const ASCII_WORD = /^[a-z]+$/;
+const NON_ASCII = /\P{ASCII}/u;
 
 const STOP_WORDS = new Set(
   `
@@ -243,6 +244,8 @@ type Term = {
   forms: string[];
   /** Still being typed: also matches index tokens it is a prefix of. */
   prefix: boolean;
+  /** The word the draft ends in, of any length: it may not be finished yet. */
+  open: boolean;
 };
 
 type Analysis = { terms: Term[]; sequence: string[]; expansions: Expansion[] };
@@ -254,8 +257,11 @@ function expansionTargets(word: string, typing: boolean): string[] {
   const exact = expandToken(word);
   const folded = exact.from === undefined ? expandToken(singular(word)) : exact;
   const targets = new Set(folded.from === undefined ? [] : folded.terms);
-  if (typing) {
-    // A listed word that is still being typed: "प्रका" → प्रकाशन → publications.
+  // A listed word that is still being typed: "प्रका" → प्रकाशन → publications.
+  // Devanagari only: Hindi words are not index tokens, so the list is their
+  // only way in. An English draft already prefix-matches the index itself, and
+  // through the list "comp" (company) lit every job and "stu" (study) education.
+  if (typing && NON_ASCII.test(word)) {
     const start = foldDevanagari(word);
     for (const listed of expansionKeys) {
       if (listed.startsWith(start)) {
@@ -285,8 +291,8 @@ function analyse(text: string, partial: boolean): Analysis {
     }
     seen.add(key);
 
-    const typing =
-      openEnded && position === words.length - 1 && word.length >= MIN_PREFIX_CHARS;
+    const open = openEnded && position === words.length - 1;
+    const typing = open && word.length >= MIN_PREFIX_CHARS;
     const forms = new Set(variants(word));
     const targets = expansionTargets(word, typing);
     for (const target of targets) {
@@ -297,7 +303,7 @@ function analyse(text: string, partial: boolean): Analysis {
     if (targets.length > 0) {
       analysis.expansions.push({ from: word, to: targets });
     }
-    analysis.terms.push({ typed: word, key, forms: [...forms], prefix: typing });
+    analysis.terms.push({ typed: word, key, forms: [...forms], prefix: typing, open });
   });
 
   return analysis;
@@ -417,6 +423,61 @@ function asksAboutPerson(text: string): boolean {
   return clean.split(" ").length <= 8 && PERSON_QUESTION.test(clean);
 }
 
+// Words that point back at the previous answer's topic. They are stop words,
+// so they never reach the terms and are looked for in the raw words instead.
+const TOPIC_ANAPHORS = `
+  it its that this there those them same
+  यह वह इस उस इसका इसके इसकी उसका उसके उसकी इसमें उसमें वहाँ
+  iska iske iski uska uske uski isme usme waha wahan
+`;
+// Words of a generic follow-up: they name no topic of their own, so "What
+// else?" or "Can you elaborate?" still means the previous question. Kept apart
+// from the stop words so the card index is unchanged.
+const FOLLOW_UP = `
+  else anything more again go continue elaborate expand explain further detail
+  details example examples interesting ok okay thanks why challenge challenges
+  problem problems difficult difficulty difficulties face faced solve solved
+  learn learned learnt lesson lessons outcome outcomes result results
+  विस्तार बताइए बताओ बताएं और कुछ
+  aur kuch batao bataiye vistar
+`;
+
+function wordSet(list: string): Set<string> {
+  return new Set(
+    list
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((word) => foldDevanagari(normalise(word))),
+  );
+}
+
+const TOPIC_WORDS = wordSet(TOPIC_ANAPHORS);
+const FOLLOW_UP_WORDS = wordSet(FOLLOW_UP);
+
+function hasWord(text: string, words: Set<string>): boolean {
+  return pieces(text).some((word) => words.has(foldDevanagari(word)));
+}
+
+// A finished word that is a token of no card, through none of its forms or
+// expansions, and not a generic follow-up word. The word still being typed is
+// not judged: "wh" may become "what".
+function isUnknown(term: Term): boolean {
+  if (term.open || FOLLOW_UP_WORDS.has(foldDevanagari(normalise(term.typed)))) return false;
+  return !INDEX.some(({ weights }) => term.forms.some((form) => weights.has(form)));
+}
+
+// The latest question's own cards first, then the rest of the merged ranking,
+// each card once. Entries come from the merged ranking so `matched` names the
+// words of both questions.
+function leadWith(alone: RankedCard[], merged: RankedCard[]): RankedCard[] {
+  const byId = new Map(merged.map((entry) => [entry.item.id, entry]));
+  const first = new Set(alone.map(({ item }) => item.id));
+  return [
+    ...alone.map((entry) => byId.get(entry.item.id) ?? entry),
+    ...merged.filter(({ item }) => !first.has(item.id)),
+  ];
+}
+
 /**
  * The one entry point, used by the API route and by the browser preview.
  * `userMessages` is every user message in the thread, oldest first.
@@ -427,6 +488,10 @@ export function retrieve(input: { userMessages: string[]; partial?: boolean }): 
   const k = normalise(latest).length > LONG_INPUT_CHARS ? LONG_INPUT_K : RETRIEVAL_K;
   const own = analyse(latest, input.partial === true);
   const alone = rank([{ analysis: own, weight: 1 }]);
+  // With no "it" or "that", a weak new keyword is a change of topic, so its
+  // own cards lead; with one, the previous topic stays first. "He" and "his"
+  // are always Bhanu here, so they never tie a question to the previous topic.
+  const switchesTopic = alone.length > 0 && !hasWord(latest, TOPIC_WORDS);
 
   // "Who is Bhanu?" has no keyword left once the name is set aside, but it
   // has an obvious answer. Only for finished questions, never mid-typing.
@@ -440,6 +505,17 @@ export function retrieve(input: { userMessages: string[]; partial?: boolean }): 
         k,
       };
     }
+  }
+
+  // "What is the weather in Paris?" after a question about ATAL AI is not a
+  // follow-up: it names something no card knows. Reusing the earlier question
+  // would hand the model ATAL AI's notes as evidence for it. A pointer word
+  // is no exception: off-topic questions are full of "it" and "there". Only
+  // generic follow-up words ("what else?", "tell me more") still reuse.
+  // The same holds when its only match is weak ("this year" brushing the
+  // profile's "years"): it keeps that match but borrows nothing.
+  if ((alone[0]?.score ?? 0) < FOLLOW_UP_SCORE && own.terms.some(isUnknown)) {
+    return { ranked: alone, expansions: own.expansions, reusedPrevious: false, k };
   }
 
   if ((alone[0]?.score ?? 0) < FOLLOW_UP_SCORE) {
@@ -457,11 +533,9 @@ export function retrieve(input: { userMessages: string[]; partial?: boolean }): 
         const extra = rank([{ analysis: own, weight: LATEST_WEIGHT }]).filter(
           ({ item }) => item.id !== PROFILE_CARD_ID,
         );
+        const person: RankedCard = { item: summary, score: MIN_SCORE, matched: ["bhanu"] };
         return {
-          ranked: [
-            { item: summary, score: MIN_SCORE, matched: ["bhanu"] },
-            ...extra,
-          ].slice(0, k),
+          ranked: (switchesTopic ? [...extra, person] : [person, ...extra]).slice(0, k),
           expansions: own.expansions,
           reusedPrevious: true,
           k,
@@ -472,7 +546,7 @@ export function retrieve(input: { userMessages: string[]; partial?: boolean }): 
         { analysis: earlier, weight: 1 },
       ]);
       return {
-        ranked: combined.slice(0, k),
+        ranked: (switchesTopic ? leadWith(alone, combined) : combined).slice(0, k),
         expansions: mergeExpansions(own.expansions, earlier.expansions),
         reusedPrevious: true,
         k,

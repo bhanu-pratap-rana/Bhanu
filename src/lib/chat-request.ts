@@ -5,6 +5,12 @@
 import { profile } from "./knowledge";
 import type { ChatMode } from "./rag";
 
+/**
+ * Appended by the server when an answer stops early. Shared here (a module the
+ * browser already loads) so the client can strip it before resending history.
+ */
+export const CUT_OFF_SUFFIX = "\n\n_(Answer cut off. Ask again for the rest.)_";
+
 export const MAX_BODY_BYTES = 64 * 1024;
 export const MAX_MESSAGES_CONSIDERED = 40;
 export const HISTORY_LIMIT = 6;

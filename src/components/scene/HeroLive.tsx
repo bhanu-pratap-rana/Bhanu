@@ -1,7 +1,7 @@
 "use client";
 
 import { Pause, Play } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useChat } from "@/components/chat/ChatProvider";
 import { useIndexView } from "@/components/chat/IndexLattice";
 import { captionFor } from "@/lib/index-caption";
@@ -22,18 +22,24 @@ export function HeroLive() {
   const demo = useSceneBus((s) => s.demo);
   const paused = useSceneBus((s) => s.paused);
   const reduced = useSceneBus((s) => s.reduced);
+  const coreOn = useSceneBus((s) => s.core === "on");
+  const heroInView = useSceneBus((s) => s.heroInView);
   const hasThread = useChat((state) => state.messages.length > 0);
-  const [heroInView, setHeroInView] = useState(true);
   const resting = view.phase === "rest";
 
+  // On the bus, not local: the core also stops showing the demo off screen.
   useEffect(() => {
     const hero = document.getElementById("top");
     if (!hero) return;
     const observer = new IntersectionObserver(([entry]) =>
-      setHeroInView(entry.isIntersecting),
+      sceneBus.set({ heroInView: entry.isIntersecting }),
     );
     observer.observe(hero);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      // Leaving the page must not leave the next hero marked off screen.
+      sceneBus.set({ heroInView: true });
+    };
   }, []);
 
   useEffect(() => {
@@ -78,7 +84,8 @@ export function HeroLive() {
         ) : (
           <span className="hero-live-text">
             {captionFor(view, busy, true)}
-            {hasThread && !busy ? (
+            {/* Only once the core has drawn: without it there is nothing lit. */}
+            {hasThread && !busy && coreOn ? (
               <span className="text-muted"> Lit in the core.</span>
             ) : null}
           </span>

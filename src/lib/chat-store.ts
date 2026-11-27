@@ -6,6 +6,7 @@
 import { countCitations, stripCitations, tidySpaces } from "../components/markdown";
 import {
   ASSISTANT_CHARS,
+  CUT_OFF_SUFFIX,
   EARLIER_USER_CHARS,
   parseChatRequest,
 } from "./chat-request";
@@ -29,6 +30,8 @@ export type ChatMessage = {
   matched?: Record<string, string[]>;
   expansions?: Expansion[];
   reusedPrevious?: boolean;
+  /** The server named notes this build of the page does not know. */
+  sourcesUnknown?: boolean;
   /** Raw X-Provider value; absent until the server has answered. */
   provider?: string;
   stopped?: boolean;
@@ -113,6 +116,7 @@ export function reviveMessages(raw: unknown): ChatMessage[] {
       provider:
         typeof message.provider === "string" ? message.provider : undefined,
       stopped: message.stopped === true ? true : undefined,
+      sourcesUnknown: message.sourcesUnknown === true ? true : undefined,
     });
   }
   // A thread must start with a question and never end on one.
@@ -163,11 +167,12 @@ export function historyFor(messages: ChatMessage[]) {
     .map(({ role, content }) => ({
       role,
       // Mirror the server's budget so long earlier turns never push the
-      // request over its size limit.
-      content: content.slice(
-        0,
-        role === "user" ? EARLIER_USER_CHARS : ASSISTANT_CHARS,
-      ),
+      // request over its size limit. The cut-off notice is site copy, not
+      // the model's words, so it never goes back to the model.
+      content: (role === "assistant" && content.endsWith(CUT_OFF_SUFFIX)
+        ? content.slice(0, -CUT_OFF_SUFFIX.length)
+        : content
+      ).slice(0, role === "user" ? EARLIER_USER_CHARS : ASSISTANT_CHARS),
     }));
 }
 
@@ -186,14 +191,26 @@ export function windowedQuestions(
   return parsed.ok ? parsed.userMessages : [next];
 }
 
-function parseSourceIds(header: string | null): string[] | undefined {
-  if (!header) return undefined;
+/**
+ * `absent` means the server said nothing, so the local list stands. `unusable`
+ * means the server did say which notes the model saw but this build cannot
+ * name them (a newer deploy, or a mangled header): the local list is then known
+ * to be wrong, and keeping it would point citations at the wrong notes.
+ */
+type ServerSources =
+  | { kind: "absent" }
+  | { kind: "unusable" }
+  | { kind: "known"; ids: string[] };
+
+function parseSourceIds(header: string | null): ServerSources {
+  if (header === null) return { kind: "absent" };
   try {
     const parsed = JSON.parse(decodeURIComponent(header)) as { id?: unknown }[];
-    if (!Array.isArray(parsed)) return undefined;
-    return knownIds(parsed.map((entry) => entry?.id));
+    if (!Array.isArray(parsed)) return { kind: "unusable" };
+    const ids = knownIds(parsed.map((entry) => entry?.id));
+    return ids ? { kind: "known", ids } : { kind: "unusable" };
   } catch {
-    return undefined;
+    return { kind: "unusable" };
   }
 }
 
@@ -306,8 +323,10 @@ export function createChatStore(deps: ChatStoreDeps = {}) {
           ? { id: message.id, role: "assistant", kind: "notice", content }
           : message,
       ),
-      // The notice itself is an alert; announcing it here too would say it twice.
-      announcement: "",
+      // The single status line is the only place an error is announced: it
+      // is always mounted, so the text is heard even when the phone dialog is
+      // closed, and the notice itself is not a second live region.
+      announcement: content,
     });
   }
 
@@ -315,6 +334,16 @@ export function createChatStore(deps: ChatStoreDeps = {}) {
     const trimmed = question.trim();
     if (!trimmed) return;
     if (state.status !== "idle") {
+      const typed = state.draft.trim();
+      if (typed && typed !== trimmed) {
+        // The visitor is writing their own question; a starter or follow-up
+        // click must not wipe it. Say why nothing was sent instead.
+        set({
+          announcement: "Wait for the current answer to finish.",
+          focusRequest: state.focusRequest + 1,
+        });
+        return;
+      }
       // Keep it for the visitor to send once the current answer is done.
       set({ draft: trimmed, focusRequest: state.focusRequest + 1 });
       return;
@@ -395,15 +424,27 @@ export function createChatStore(deps: ChatStoreDeps = {}) {
       const serverSources = parseSourceIds(response.headers.get("x-sources"));
       const serverScores = parseScores(response.headers.get("x-retrieval"));
       const localIds = local.ranked.map(({ item }) => item.id).join(",");
-      const differs = serverSources !== undefined && serverSources.join(",") !== localIds;
+      const differs =
+        serverSources.kind === "known" && serverSources.ids.join(",") !== localIds;
       patchMessage(assistantId, {
         provider: response.headers.get("x-provider") ?? undefined,
-        ...(serverSources ? { sources: serverSources } : {}),
+        ...(serverSources.kind === "known" ? { sources: serverSources.ids } : {}),
         ...(serverScores ? { scores: serverScores } : {}),
         reusedPrevious:
           response.headers.get("x-retrieval-note") === "reused-previous",
         // Local match details describe a different list; do not show them.
         ...(differs ? { matched: undefined, expansions: undefined } : {}),
+        // No list at all beats a wrong one: citations then render as plain
+        // text instead of opening a note the model never saw.
+        ...(serverSources.kind === "unusable"
+          ? {
+              sources: [],
+              sourcesUnknown: true,
+              scores: undefined,
+              matched: undefined,
+              expansions: undefined,
+            }
+          : {}),
       });
 
       const reader = response.body.getReader();
@@ -433,13 +474,15 @@ export function createChatStore(deps: ChatStoreDeps = {}) {
         fail(assistantId, "The model returned no text. Ask again.");
         return;
       }
-      const sourceCount =
-        state.messages.find((message) => message.id === assistantId)?.sources
-          ?.length ?? 0;
+      const reply = state.messages.find((message) => message.id === assistantId);
+      const sourceCount = reply?.sources?.length ?? 0;
       patchMessage(assistantId, { content, totalMs: now() - startedAt });
       const { cited } = countCitations(content, sourceCount);
+      const text = stripCitations(content).slice(0, 700);
       set({
-        announcement: `Answer, citing ${cited.length} of ${sourceCount} notes: ${stripCitations(content).slice(0, 700)}`,
+        announcement: reply?.sourcesUnknown
+          ? `Answer: ${text}`
+          : `Answer, citing ${cited.length} of ${sourceCount} notes: ${text}`,
       });
     } catch (error) {
       if (mine !== run) return;
@@ -484,7 +527,14 @@ export function createChatStore(deps: ChatStoreDeps = {}) {
       run += 1;
       controller?.abort();
       controller = null;
-      set({ ...EMPTY_CHAT_STATE, open: state.open });
+      // focusRequest only ever grows: the composer and the dialog host act
+      // on a change, so winding it back could make the next request equal a
+      // value they have already handled, and New chat would not focus.
+      set({
+        ...EMPTY_CHAT_STATE,
+        open: state.open,
+        focusRequest: state.focusRequest,
+      });
       try {
         storage()?.removeItem(STORAGE_KEY);
       } catch {

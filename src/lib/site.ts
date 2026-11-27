@@ -12,3 +12,20 @@ export const lastUpdatedIso = "2026-11-27";
 export const lastUpdatedLabel = "27 November 2026";
 
 export const sourceRepoUrl = "https://github.com/bhanu-pratap-rana/Bhanu";
+
+// Next merges metadata shallowly, so a page that sets its own openGraph drops
+// every field the layout set. Pages spread this to keep the shared ones.
+export const baseOpenGraph = {
+  type: "website",
+  siteName,
+  locale: "en_IN",
+} as const;
+
+// Unlisted projects have no row of their own on the home page; they appear
+// only in the "Smaller public work" line, so that is where "back" lands.
+export function workAnchorHref(project: {
+  slug: string;
+  listed: boolean;
+}): string {
+  return project.listed ? `/#work-${project.slug}` : "/#work-more";
+}

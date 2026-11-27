@@ -219,6 +219,38 @@ describe("POST /api/chat", () => {
     expect(await res.text()).toBe("second model");
   });
 
+  it("ends a slow answer 27s after the request, not 27s after its first text", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.stubGlobal("fetch", vi.fn((_u: string, init: RequestInit) => {
+      const body = new ReadableStream<Uint8Array>({
+        start(c) {
+          // First text after 10s, then the model goes silent for good.
+          setTimeout(() => c.enqueue(enc.encode(frame("slow start"))), 10_000);
+          init.signal!.addEventListener("abort", () => c.error(new DOMException("aborted", "AbortError")));
+        },
+      });
+      return Promise.resolve(new Response(body, { status: 200 }));
+    }));
+    const { POST } = await load({ GROQ_API_KEY: "k", GROQ_MODEL: undefined });
+    const pending = POST(post(question));
+    await vi.advanceTimersByTimeAsync(10_001);
+    const res = await pending;
+    expect(res.headers.get("x-provider")).toBe("groq:openai/gpt-oss-120b");
+
+    let closed = false;
+    const text = res.text().then((t) => {
+      closed = true;
+      return t;
+    });
+    await vi.advanceTimersByTimeAsync(26_990 - 10_001);
+    expect(closed).toBe(false);
+    await vi.advanceTimersByTimeAsync(20);
+    for (let i = 0; i < 20 && !closed; i++) await vi.advanceTimersByTimeAsync(0);
+    expect(closed).toBe(true);
+    expect(await text).toMatch(/^slow start\n\n_\(Answer cut off/);
+  });
+
   it("returns 499 without walking on when the client aborts", async () => {
     const client = new AbortController();
     const fetchMock = vi.fn((_u: string, init: RequestInit) =>

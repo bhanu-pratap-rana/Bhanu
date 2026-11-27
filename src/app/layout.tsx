@@ -7,7 +7,7 @@ import { SiteFooter } from "@/components/site/SiteFooter";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { MemoryCore } from "@/components/scene/MemoryCore";
 import { education, experience, profile } from "@/lib/knowledge";
-import { siteName, siteUrl } from "@/lib/site";
+import { baseOpenGraph, siteName, siteUrl } from "@/lib/site";
 import "./globals.css";
 
 // One design drawn for both scripts, so English and Hindi sit together
@@ -62,24 +62,20 @@ export const metadata: Metadata = {
     "Indic AI",
     "Hindi NLP",
   ],
-  alternates: { canonical: "/" },
+  // No canonical or robots here: every child inherits them, so the 404 page
+  // would claim the home page as its canonical and emit a second robots tag
+  // beside its own noindex. The home page sets its canonical; index/follow is
+  // the default.
   openGraph: {
-    type: "website",
+    ...baseOpenGraph,
     url: siteUrl,
-    siteName,
     title,
     description,
-    locale: "en_IN",
   },
   twitter: {
     card: "summary_large_image",
     title,
     description,
-  },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: { index: true, follow: true },
   },
 };
 
@@ -142,6 +138,16 @@ export default function RootLayout({
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        {/* Without JS the 3D stage never draws and the live line never runs,
+            so hide both rather than leave a blank band and a dead button.
+            The CSP allows inline styles ('unsafe-inline' in style-src). */}
+        <noscript>
+          <style>
+            {
+              ".hero-stage{display:none}.hero-live button{display:none}.hero-live-mark{animation:none}"
+            }
+          </style>
+        </noscript>
       </head>
       <body>
         <a

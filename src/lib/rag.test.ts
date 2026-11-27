@@ -328,6 +328,20 @@ describe("scoreKnowledge while typing (partial)", () => {
     expect(typing[0]?.item.id).toBe("publications");
   });
 
+  it("does not pull a section in through an English word-list key the draft is a prefix of", () => {
+    // "comp" is the start of "company" (→ experience), "stu" of "study" (→ education).
+    const comp = retrieve({ userMessages: ["comp"], partial: true });
+    expect(comp.expansions).toEqual([]);
+    expect(ids(comp.ranked)).not.toContain("testneo-api-generator");
+    expect(ids(comp.ranked)).not.toContain("khs-research-assistant");
+    expect(retrieve({ userMessages: ["stu"], partial: true }).expansions).toEqual([]);
+    expect(retrieve({ userMessages: ["car"], partial: true }).ranked).toEqual([]);
+    // A listed English word typed in full still expands while it is the last word.
+    expect(retrieve({ userMessages: ["study"], partial: true }).expansions).toEqual([
+      { from: "study", to: ["education"] },
+    ]);
+  });
+
   it("agrees with the finished question once typing stops", () => {
     for (const { q } of goldenQuestions) {
       expect(scoreKnowledge(q, { partial: true })).toEqual(scoreKnowledge(q));
@@ -380,12 +394,48 @@ describe("retrieve", () => {
     expect(result.ranked[0]?.item.id).toBe("aura-ai");
   });
 
-  it("keeps a weak new keyword in view when it leans on the previous question", () => {
+  it("treats 'he' as Bhanu, not as a pointer back: a new keyword leads", () => {
     const result = retrieve({
       userMessages: ["How did he build Aura AI?", "Does he know PyTorch?"],
     });
+    expect(result.ranked[0]?.item.id).toBe("skills-genai-rag");
+  });
+
+  it("keeps the previous topic first when the follow-up points back at it", () => {
+    const result = retrieve({
+      userMessages: ["How did he build Aura AI?", "What stack did it use?"],
+    });
+    expect(result.ranked[0]?.item.id).toBe("aura-ai");
+  });
+
+  // Off-topic questions are full of "it", "this" and "there"; a pointer word
+  // must not turn them into follow-ups that borrow the earlier notes.
+  it.each([
+    "Is it raining in Delhi?",
+    "Can you translate this into French?",
+    "What is the weather there?",
+    "Write a poem about that",
+    "Who won the match this year?",
+  ])("borrows nothing for the off-topic follow-up %j", (question) => {
+    const result = retrieve({ userMessages: ["How did he build Aura AI?", question] });
+    expect(result.reusedPrevious).toBe(false);
+    expect(ids(result.ranked)).not.toContain("aura-ai");
+    // Exactly what the question retrieves on its own, nothing carried over.
+    expect(ids(result.ranked)).toEqual(ids(retrieve({ userMessages: [question] }).ranked));
+  });
+
+  // Generic follow-ups name no topic of their own; they mean "the same thing".
+  it.each([
+    "What else?",
+    "Can you elaborate?",
+    "Go on",
+    "विस्तार से बताइए",
+    "What problems did he solve?",
+    "tell me more",
+  ])("reuses the previous question for the generic follow-up %j", (question) => {
+    const result = retrieve({ userMessages: ["How did he build Aura AI?", question] });
     expect(result.reusedPrevious).toBe(true);
-    expect(ids(result.ranked).slice(0, 2)).toEqual(["aura-ai", "skills-genai-rag"]);
+    expect(result.ranked[0]?.item.id).toBe("aura-ai");
   });
 
   it("does not reuse the previous question when the new one stands on its own", () => {
@@ -401,6 +451,61 @@ describe("retrieve", () => {
     const result = retrieve({ userMessages: ["hello there", "What is the weather in Paris?"] });
     expect(result.reusedPrevious).toBe(false);
     expect(result.ranked).toEqual([]);
+  });
+
+  it("returns nothing for an off-topic follow-up, whatever came before it", () => {
+    const openers = [
+      "Tell me about ATAL AI",
+      "How did he build Aura AI?",
+      "Who is Bhanu?",
+      "उनका अनुभव क्या है?",
+    ];
+    for (const opener of openers) {
+      for (const question of offTopicQuestions) {
+        const result = retrieve({ userMessages: [opener, question] });
+        expect(ids(result.ranked), `${opener} → ${question}`).toEqual([]);
+        expect(result.reusedPrevious, `${opener} → ${question}`).toBe(false);
+      }
+    }
+    expect(
+      retrieve({ userMessages: ["Tell me about ATAL AI", "What is the weather in Paris?"] }).ranked,
+    ).toEqual([]);
+  });
+
+  it("still reuses for a follow-up whose new word points back with it/that", () => {
+    // "challenges" is in no card, but "it" says the question is about Aura AI.
+    const result = retrieve({
+      userMessages: ["How did he build Aura AI?", "What challenges did it face?"],
+    });
+    expect(result.reusedPrevious).toBe(true);
+    expect(result.ranked[0]?.item.id).toBe("aura-ai");
+  });
+
+  it("does not drop the previous topic while an unknown word is still being typed", () => {
+    const thread = ["How did he build Aura AI?", "What challenges did it fa"];
+    const typing = retrieve({ userMessages: ["How did he build Aura AI?", "What about wh"], partial: true });
+    expect(typing.reusedPrevious).toBe(true);
+    expect(typing.ranked[0]?.item.id).toBe("aura-ai");
+    expect(retrieve({ userMessages: thread, partial: true }).ranked[0]?.item.id).toBe("aura-ai");
+  });
+
+  it("puts the new topic first when a follow-up switches topic with one keyword", () => {
+    const result = retrieve({
+      userMessages: ["How did he build Aura AI?", "What about PyTorch?"],
+    });
+    expect(result.reusedPrevious).toBe(true);
+    expect(result.ranked[0]?.item.id).toBe("skills-genai-rag");
+    expect(ids(result.ranked)).toContain("aura-ai");
+    expect(new Set(ids(result.ranked)).size).toBe(result.ranked.length);
+    expect(result.ranked.length).toBeLessThanOrEqual(result.k);
+  });
+
+  it("keeps the previous topic first when the follow-up points back to it", () => {
+    const result = retrieve({
+      userMessages: ["How did he build Aura AI?", "What stack did it use?"],
+    });
+    expect(result.reusedPrevious).toBe(true);
+    expect(ids(result.ranked).slice(0, 2)).toEqual(["aura-ai", "skills-genai-rag"]);
   });
 
   it("lists the word-list expansions it applied, once each, and no identity ones", () => {

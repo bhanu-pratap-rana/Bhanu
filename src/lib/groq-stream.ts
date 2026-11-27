@@ -14,7 +14,14 @@ export type SseParse = {
   done: boolean;
   /** The provider sent an in-stream error frame. */
   failed: boolean;
+  /** A frame ended the answer with `finish_reason: "length"` (token budget). */
+  truncated: boolean;
 };
+
+// Appended when an answer stops early, so a cut-off reply never reads as a
+// finished one. Markdown, like the model's own output.
+export { CUT_OFF_SUFFIX } from "./chat-request";
+import { CUT_OFF_SUFFIX } from "./chat-request";
 
 export type ModelStreamResult =
   | { ok: true; stream: ReadableStream<Uint8Array> }
@@ -39,6 +46,15 @@ function deltaContent(payload: Record<string, unknown>): string {
   return typeof delta.content === "string" ? delta.content : "";
 }
 
+function hitTokenLimit(payload: Record<string, unknown>): boolean {
+  const choices = payload.choices;
+  return (
+    Array.isArray(choices) &&
+    isRecord(choices[0]) &&
+    choices[0].finish_reason === "length"
+  );
+}
+
 /**
  * Incremental SSE parser. Feed it `rest + nextChunk`; pass `flush` once the
  * stream has ended so a final frame without a blank line is still read.
@@ -58,6 +74,7 @@ export function parseSseDeltas(buffer: string, flush = false): SseParse {
   if (flush && tail.trim()) frames.push(tail);
 
   const deltas: string[] = [];
+  let truncated = false;
   for (const frame of frames) {
     let eventName = "";
     const dataLines: string[] = [];
@@ -73,7 +90,7 @@ export function parseSseDeltas(buffer: string, flush = false): SseParse {
 
     const data = dataLines.join("\n").trim();
     if (data === "[DONE]") {
-      return { deltas, rest: "", done: true, failed: false };
+      return { deltas, rest: "", done: true, failed: false, truncated };
     }
 
     let payload: unknown;
@@ -82,24 +99,31 @@ export function parseSseDeltas(buffer: string, flush = false): SseParse {
     } catch {
       // A malformed frame is skipped; an "error" event is a failure either way.
       if (eventName === "error") {
-        return { deltas, rest: "", done: false, failed: true };
+        return { deltas, rest: "", done: false, failed: true, truncated };
       }
       continue;
     }
     if (eventName === "error") {
-      return { deltas, rest: "", done: false, failed: true };
+      return { deltas, rest: "", done: false, failed: true, truncated };
     }
     if (!isRecord(payload)) continue;
     // Groq reports a mid-stream failure as `error` or as `x_groq.error`.
     if (payload.error || (isRecord(payload.x_groq) && payload.x_groq.error)) {
-      return { deltas, rest: "", done: false, failed: true };
+      return { deltas, rest: "", done: false, failed: true, truncated };
     }
 
     const content = deltaContent(payload);
     if (content) deltas.push(content);
+    if (hitTokenLimit(payload)) truncated = true;
   }
 
-  return { deltas, rest: flush ? "" : tail + held, done: false, failed: false };
+  return {
+    deltas,
+    rest: flush ? "" : tail + held,
+    done: false,
+    failed: false,
+    truncated,
+  };
 }
 
 export function textStream(text: string): ReadableStream<Uint8Array> {
@@ -119,12 +143,19 @@ export function textStream(text: string): ReadableStream<Uint8Array> {
  */
 export async function openModelStream(
   body: ReadableStream<Uint8Array>,
+  options: {
+    /** The visitor stopped the answer: an early end is theirs, not a cut-off. */
+    isClientGone?: () => boolean;
+  } = {},
 ): Promise<ModelStreamResult> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let rest = "";
   let ended = false;
   let failed = false;
+  // Why the answer stopped early, if it did; logged, never shown.
+  let cutReason: "read-error" | "error-frame" | "overflow" | "length" | null =
+    null;
 
   const release = (reason?: unknown) =>
     reader.cancel(reason).catch(() => undefined);
@@ -135,8 +166,10 @@ export async function openModelStream(
     try {
       result = await reader.read();
     } catch {
+      // Also how the route's stop timer lands: it aborts the fetch.
       ended = true;
       failed = true;
+      cutReason = "read-error";
       return "";
     }
 
@@ -144,17 +177,31 @@ export async function openModelStream(
       ? parseSseDeltas(rest + decoder.decode(), true)
       : parseSseDeltas(rest + decoder.decode(result.value, { stream: true }));
     rest = parsed.rest;
+    if (parsed.truncated) cutReason = "length";
 
     if (result.done) {
       ended = true;
       failed = parsed.failed;
+      if (parsed.failed) cutReason = "error-frame";
     } else if (parsed.done || parsed.failed || rest.length > MAX_PENDING_CHARS) {
       // Do not wait for a server that keeps the socket open after [DONE].
       ended = true;
       failed = !parsed.done;
+      if (parsed.failed) cutReason = "error-frame";
+      else if (!parsed.done) cutReason = "overflow";
       void release();
     }
     return parsed.deltas.join("");
+  }
+
+  // Ends the visitor's stream. A cut-off answer keeps the text that did
+  // arrive but says it is incomplete, instead of passing as a full reply.
+  function finish(controller: ReadableStreamDefaultController<Uint8Array>) {
+    if (cutReason && !options.isClientGone?.()) {
+      console.warn("groq stream cut off", { reason: cutReason });
+      controller.enqueue(encoder.encode(CUT_OFF_SUFFIX));
+    }
+    controller.close();
   }
 
   let peeked = "";
@@ -170,7 +217,7 @@ export async function openModelStream(
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       controller.enqueue(encoder.encode(peeked));
-      if (ended) controller.close();
+      if (ended) finish(controller);
     },
     // Must not return before it has enqueued or closed: the stream only pulls
     // again after an enqueue, so a chunk that held no text (role-only delta,
@@ -181,14 +228,14 @@ export async function openModelStream(
         if (ended) {
           // An upstream failure after partial output still ends the answer
           // cleanly: the visitor keeps the text that did arrive.
-          controller.close();
+          finish(controller);
           return;
         }
         const text = await readChunk();
         if (cancelled) return;
         if (text) {
           controller.enqueue(encoder.encode(text));
-          if (ended) controller.close();
+          if (ended) finish(controller);
           return;
         }
       }

@@ -32,6 +32,36 @@ export function sectionTargets(active: string | null, anchors: string[]): number
   );
 }
 
+/**
+ * What the core lights. Once something is asked it follows the copilot
+ * everywhere; at rest the idle demo stands in, but only while the hero is
+ * showing it, so elsewhere a page's own note is not outshone by a demo.
+ */
+export function coreGlow(
+  view: IndexView,
+  ids: string[],
+  demoGlow: ArrayLike<number>,
+  demoShowing: boolean,
+): number[] {
+  if (view.phase !== "rest") return glowTargets(view, ids);
+  return ids.map((_, i) => (demoShowing ? (demoGlow[i] ?? 0) : 0));
+}
+
+/**
+ * Frame-rate independent ease toward a target. With motion off it lands on
+ * the target at once: pausing or reduced motion must never start a glide.
+ */
+export function approach(
+  current: number,
+  target: number,
+  rate: number,
+  dt: number,
+  still = false,
+): number {
+  if (still) return target;
+  return current + (target - current) * (1 - Math.exp(-rate * dt));
+}
+
 export type DemoFrame = { question: string; glow: number[]; count: number };
 
 /**

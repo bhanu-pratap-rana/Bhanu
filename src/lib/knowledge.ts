@@ -527,7 +527,7 @@ export const knowledgeBase: KnowledgeItem[] = [
     ],
     anchor: "top",
     prompt: "Summarise Bhanu in 30 seconds: role, experience and location.",
-    aliases: ["summary", "summarise", "summarize", "about", "who", "introduce", "introduction", "overview", "background", "hire", "hiring", "seniority", "senior", "years", "location", "based", "role", "strengths", "strongest", "fit", "languages", "speak", "speaks", "spoken", "english"],
+    aliases: ["summary", "summarise", "summarize", "introduce", "introduction", "overview", "background", "hire", "hiring", "seniority", "senior", "years", "location", "based", "role", "strengths", "strongest", "fit", "languages", "speak", "speaks", "spoken", "english"],
     basis: "resume",
   },
   {
@@ -675,7 +675,7 @@ export const knowledgeBase: KnowledgeItem[] = [
     ],
     anchor: "work-more",
     prompt: "What other public repositories does he have?",
-    aliases: ["github", "repositories", "repos", "open-source", "opensource", "side", "other", "more", "extension", "sales", "sentiment"],
+    aliases: ["github", "repositories", "repos", "open-source", "opensource", "side", "extension", "sales", "sentiment"],
     basis: "repo",
   },
   {
@@ -729,7 +729,9 @@ export const knowledgeBase: KnowledgeItem[] = [
     anchor: "skills",
     prompt: "Which LLM and retrieval tools has he used, and in which projects?",
     aliases: ["skills", "stack", "tools", "technologies", "tech", "vector", "database", "databases", "llms", "models", "frameworks", "pytorch", "gpt"],
-    basis: "resume",
+    // FAISS in the Sales Pitch Generator and Ollama in the Smart HR Tool are
+    // known from those repositories, not from the résumé.
+    basis: "resume+repo",
   },
   {
     id: "skills-agents",
@@ -832,7 +834,7 @@ export const knowledgeBase: KnowledgeItem[] = [
     body: `Achievements listed on his résumé: Best Paper Award, Amity Law School (2025), for a co-authored paper at the National Conference on the Intersection of AI and Law. Best Project Showcase, Govt. ITI, Bijnor. Best Performer Student, MIET Kumaun. Student of the Year, LIC.`,
     anchor: "background",
     prompt: "What awards has he received?",
-    aliases: ["honours", "honors", "recognition", "prizes", "award", "won", "achievement"],
+    aliases: ["honours", "honors", "recognition", "prizes", "award", "winner", "achievement"],
     basis: "resume",
   },
   {
@@ -878,7 +880,7 @@ export const knowledgeBase: KnowledgeItem[] = [
     links: [{ label: "Source code", href: `${GITHUB}/Bhanu` }],
     anchor: "how",
     prompt: "How does this copilot retrieve and cite, and why no vector database?",
-    aliases: ["copilot", "assistant", "chatbot", "bot", "site", "website", "portfolio", "works", "retrieve", "cite", "citations", "lexical", "keyword", "vector", "database", "architecture", "built"],
+    aliases: ["copilot", "assistant", "chatbot", "bot", "site", "website", "portfolio", "implementation", "retrieve", "cite", "citations", "lexical", "keyword", "vector", "database", "architecture"],
     basis: "site",
   },
 ];

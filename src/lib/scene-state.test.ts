@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { IndexView } from "./index-view";
 import { knowledgeBase, starterQuestions } from "./knowledge";
 import {
+  approach,
+  coreGlow,
   demoFrames,
   glowTargets,
   isLit,
@@ -83,6 +85,47 @@ describe("demoFrames", () => {
       expect(frame.glow).toHaveLength(ids.length);
       expect(frame.count).toBe(frame.glow.filter(isLit).length);
       expect(frame.count).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe("approach", () => {
+  it("eases part of the way toward the target while motion is on", () => {
+    const next = approach(0, 1, 6, 1 / 60);
+    expect(next).toBeGreaterThan(0);
+    expect(next).toBeLessThan(1);
+  });
+
+  it("does not move without elapsed time", () => {
+    expect(approach(0.2, 1, 6, 0)).toBe(0.2);
+  });
+
+  it("lands on the target at once with motion off, so pausing never animates", () => {
+    expect(approach(0, 1, 6, 1 / 60, true)).toBe(1);
+    expect(approach(3.2, 0.6, 3, 0, true)).toBe(0.6);
+  });
+});
+
+describe("coreGlow", () => {
+  const rest = view({}, "rest");
+  const demo = ids.map((_, i) => (i === 0 ? 0.62 : 0));
+
+  it("plays the idle demo at rest while the hero is showing it", () => {
+    expect(coreGlow(rest, ids, demo, true)).toEqual(demo);
+  });
+
+  it("is dark at rest anywhere the demo is not showing, so a page's own note leads", () => {
+    const g = coreGlow(rest, ids, demo, false);
+    expect(g).toHaveLength(ids.length);
+    expect(g.every((x) => x === 0)).toBe(true);
+  });
+
+  it("follows the copilot, not the demo, once something is asked", () => {
+    const asked = view({ [ids[3]]: { level: 3, pulled: true, cite: 1 } }, "pulled");
+    for (const showing of [true, false]) {
+      const g = coreGlow(asked, ids, demo, showing);
+      expect(g[3]).toBe(1);
+      expect(g[0]).toBe(0);
     }
   });
 });

@@ -26,6 +26,43 @@ export function Composer() {
   const left = max - draft.length;
   const nearLimit = left < 200;
 
+  const stopRef = useRef<HTMLButtonElement>(null);
+  // Whether the Stop button held focus at the moment the answer ended. Read
+  // from the store's own notification, which runs before React swaps the
+  // button out, so it is still in the page and can be asked.
+  const stopHadFocus = useRef(false);
+  const wasBusy = useRef(busy);
+
+  useEffect(() => {
+    let before = store.getState().status !== "idle";
+    return store.subscribe(() => {
+      const now = store.getState().status !== "idle";
+      if (before && !now) {
+        // Keyboard focus only: a tap on Stop (Android focuses tapped buttons)
+        // must not pull the keyboard up over the answer just stopped.
+        stopHadFocus.current =
+          stopRef.current !== null &&
+          document.activeElement === stopRef.current &&
+          stopRef.current.matches(":focus-visible");
+      }
+      before = now;
+    });
+  }, [store]);
+
+  // Removing the focused Stop button drops focus to the page; put it back in
+  // the field the visitor will use next. Only when it was on Stop: a reader
+  // whose focus was already nowhere keeps the page's own keyboard scrolling.
+  useEffect(() => {
+    const ended = wasBusy.current && !busy;
+    wasBusy.current = busy;
+    if (!ended || !stopHadFocus.current) return;
+    stopHadFocus.current = false;
+    const active = document.activeElement;
+    if (active === document.body || active === stopRef.current) {
+      inputRef.current?.focus({ preventScroll: true });
+    }
+  }, [busy]);
+
   useEffect(() => {
     if (focusRequest === seenRequest.current) return;
     seenRequest.current = focusRequest;
@@ -90,8 +127,12 @@ export function Composer() {
           </p>
         ) : null}
       </div>
+      {/* Separate keys, so Stop and Send are separate nodes: a Stop press that
+          lands just as the answer ends must not become a Send of the draft. */}
       {busy ? (
         <button
+          key="stop"
+          ref={stopRef}
           type="button"
           onClick={() => store.stop()}
           aria-label="Stop the answer"
@@ -101,6 +142,7 @@ export function Composer() {
         </button>
       ) : (
         <button
+          key="send"
           type="submit"
           disabled={!draft.trim()}
           aria-label="Send question"

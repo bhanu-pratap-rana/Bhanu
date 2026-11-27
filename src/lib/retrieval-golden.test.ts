@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { knowledgeBase, starterQuestions } from "./knowledge";
+import { retrieve } from "./rag";
 import {
   evaluateRetrieval,
   goldenQuestions,
   offTopicQuestions,
+  onTopicOpeners,
 } from "./retrieval-golden";
 
 describe("golden questions", () => {
@@ -97,6 +99,7 @@ describe("evaluateRetrieval", () => {
         `hi ${byLang.hi.hits}/${byLang.hi.total}`,
         `hinglish ${byLang.hinglish.hits}/${byLang.hinglish.total}`,
         `off-topic clean ${offTopic.clean}/${offTopic.total}`,
+        `off-topic follow-up clean ${result.offTopicFollowUp.clean}/${result.offTopicFollowUp.total}`,
       ].join(" | "),
     );
     for (const miss of misses) {
@@ -121,6 +124,19 @@ describe("evaluateRetrieval", () => {
 
   it("retrieves nothing for every off-topic question", () => {
     expect(result.offTopic.clean).toBe(result.offTopic.total);
+  });
+
+  it("retrieves nothing for an off-topic question asked as a follow-up", () => {
+    const { offTopicFollowUp } = result;
+    expect(offTopicFollowUp.total).toBe(offTopicQuestions.length * onTopicOpeners.length);
+    expect(onTopicOpeners.length).toBeGreaterThanOrEqual(3);
+    expect(offTopicFollowUp.clean).toBe(offTopicFollowUp.total);
+  });
+
+  it("opens each follow-up with a question that does retrieve", () => {
+    for (const opener of onTopicOpeners) {
+      expect(retrieve({ userMessages: [opener] }).ranked.length, opener).toBeGreaterThan(0);
+    }
   });
 
   it("is deterministic", () => {

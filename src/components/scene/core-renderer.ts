@@ -10,7 +10,6 @@ import {
   Color,
   CylinderGeometry,
   DynamicDrawUsage,
-  Float32BufferAttribute,
   InstancedBufferAttribute,
   InstancedMesh,
   LineBasicMaterial,
@@ -31,6 +30,7 @@ import {
   Vector3,
   WebGLRenderer,
 } from "three";
+import { approach } from "@/lib/scene-state";
 
 export type Stage = { cx: number; cy: number; r: number };
 
@@ -216,10 +216,6 @@ function ease(t: number): number {
   return 1 - Math.pow(1 - c, 3);
 }
 
-function approach(current: number, target: number, rate: number, dt: number): number {
-  return current + (target - current) * (1 - Math.exp(-rate * dt));
-}
-
 export function createCore(
   canvas: HTMLCanvasElement,
   layout: { x: number; z: number; ring: number }[],
@@ -338,7 +334,9 @@ export function createCore(
     dustSeed[i] = (i * 0.618) % 1;
   }
   const dustGeo = new BufferGeometry();
-  dustGeo.setAttribute("position", new Float32BufferAttribute(dustPos, 3).setUsage(DynamicDrawUsage));
+  // BufferAttribute, not Float32BufferAttribute: that one copies the array,
+  // so the drift written into dustPos each frame would never reach the GPU.
+  dustGeo.setAttribute("position", new BufferAttribute(dustPos, 3).setUsage(DynamicDrawUsage));
   const dustMat = new PointsMaterial({
     color: new Color(),
     size: 0.06,
@@ -467,12 +465,14 @@ export function createCore(
     // Latched: once grown, pausing and playing never replays the rise.
     intro = still ? 1 : Math.max(intro, Math.min(1, (now - introStart) / 1800));
 
-    // Ease toward the targets. `moving` is anything other than idle drift.
+    // Ease toward the targets (with motion off, land on them). `moving` is
+    // anything other than idle drift; it compares before assigning, so a
+    // snap still gets the one redraw it needs.
     let moving = false;
     for (let i = 0; i < count; i++) {
-      const g = approach(glow[i], inputs.glow[i], 6, dt);
-      const sc = approach(sect[i], inputs.section[i], 4, dt);
-      const h = approach(hov[i], inputs.hover === i ? 1 : 0, 12, dt);
+      const g = approach(glow[i], inputs.glow[i], 6, dt, still);
+      const sc = approach(sect[i], inputs.section[i], 4, dt, still);
+      const h = approach(hov[i], inputs.hover === i ? 1 : 0, 12, dt, still);
       if (Math.abs(g - glow[i]) + Math.abs(sc - sect[i]) + Math.abs(h - hov[i]) > 1e-4) moving = true;
       glow[i] = g;
       sect[i] = sc;
@@ -501,8 +501,9 @@ export function createCore(
     // Camera: drifts slowly on its own, turns with the scroll, leans with the pointer.
     const targetAz = 0.6 + (still ? 0 : inputs.scroll * Math.PI * 1.15) + time * 0.045;
     const targetEl = 0.62 + (still ? 0 : inputs.scroll * 0.35);
-    const nextAz = approach(az, targetAz, 3, dt);
-    const nextEl = approach(el, targetEl, 3, dt);
+    // Pausing drops the scroll turn; snapping keeps that from becoming a swing.
+    const nextAz = approach(az, targetAz, 3, dt, still);
+    const nextEl = approach(el, targetEl, 3, dt, still);
     const nextPointer = still
       ? { x: 0, y: 0 }
       : { x: approach(pointer.x, inputs.pointer.x, 2.5, dt), y: approach(pointer.y, inputs.pointer.y, 2.5, dt) };
