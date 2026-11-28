@@ -170,8 +170,8 @@
   }
 
   /* Role and current employer, right under the name: what a recruiter
-     screens on first. Ink, not muted. One sentence ("AI/ML Engineer at
-     Kendriya Hindi Sansthan, Agra", the resume title and the city), no
+     screens on first. Ink, not muted. One sentence ("<title> at
+     Kendriya Hindi Sansthan, Agra", the current title and the city), no
      separator glyph; on narrow phones it wraps like any sentence. */
   .hero-role {
     /* +5px: the Devanagari line's descending vowel signs (the ु of भानु)

@@ -333,7 +333,9 @@ describe("scoreKnowledge while typing (partial)", () => {
     const comp = retrieve({ userMessages: ["comp"], partial: true });
     expect(comp.expansions).toEqual([]);
     expect(ids(comp.ranked)).not.toContain("testneo-api-generator");
-    expect(ids(comp.ranked)).not.toContain("khs-research-assistant");
+    // The KHS note may still match "comp": its own title ("Computer
+    // Assistant") starts with it, which is a real prefix match, not a
+    // word-list expansion.
     expect(retrieve({ userMessages: ["stu"], partial: true }).expansions).toEqual([]);
     expect(retrieve({ userMessages: ["car"], partial: true }).ranked).toEqual([]);
     // A listed English word typed in full still expands while it is the last word.
