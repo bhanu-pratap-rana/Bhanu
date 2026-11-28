@@ -8,8 +8,8 @@ export const siteName = "Bhanu Pratap Rana";
 
 // Bumped when content changes. Feeds the sitemap <lastmod> and the footer, as
 // one fixed ISO date so server and client never format it differently.
-export const lastUpdatedIso = "2026-11-27";
-export const lastUpdatedLabel = "27 November 2026";
+export const lastUpdatedIso = "2026-11-28";
+export const lastUpdatedLabel = "28 November 2026";
 
 export const sourceRepoUrl = "https://github.com/bhanu-pratap-rana/Bhanu";
 
