@@ -1,13 +1,18 @@
 import type { NextConfig } from "next";
+import { buildCsp } from "./src/lib/csp";
+import { projects } from "./src/lib/knowledge";
+import { embedProviders } from "./src/lib/project-media";
 
 const isDev = process.env.NODE_ENV !== "production";
 
-// React's dev runtime (Turbopack / Fast Refresh) needs eval() for debugging
-// features like callstack reconstruction. Production never uses eval, so the
-// strict policy applies there.
-const scriptSrc = isDev
-  ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
-  : "script-src 'self' 'unsafe-inline'";
+// The CSP is built from what the projects use (src/lib/csp.ts, tested):
+// media-src 'self' for demo videos, and frame-src only for the embed
+// providers that some project's media actually uses. Relative imports: the
+// config loader does not resolve the "@/" alias.
+const contentSecurityPolicy = buildCsp({
+  dev: isDev,
+  providers: embedProviders(projects),
+});
 
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
@@ -19,18 +24,7 @@ const securityHeaders = [
   },
   {
     key: "Content-Security-Policy",
-    value: [
-      "default-src 'self'",
-      // Next App Router hydration injects inline runtime scripts.
-      scriptSrc,
-      "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data:",
-      "font-src 'self' data:",
-      "connect-src 'self'",
-      "frame-ancestors 'none'",
-      "base-uri 'self'",
-      "form-action 'self'",
-    ].join("; "),
+    value: contentSecurityPolicy,
   },
 ];
 

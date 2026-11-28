@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Background } from "@/components/sections/Background";
-import { Contact } from "@/components/sections/Contact";
 import { Experience } from "@/components/sections/Experience";
 import { Hero } from "@/components/sections/Hero";
 import { HowItWorks } from "@/components/sections/HowItWorks";
@@ -23,7 +22,9 @@ export default function Home() {
       <Skills />
       <Publications />
       <Background />
-      <Contact />
+      {/* The copilot's design note closes the page; the footer's contact
+          line follows it (SiteFooter). Section ids: pageSectionIds in
+          src/lib/site.ts. */}
       <HowItWorks />
     </main>
   );

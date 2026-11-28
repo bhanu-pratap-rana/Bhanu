@@ -42,7 +42,11 @@ export function useIndexView(): { view: IndexView; busy: boolean } {
       preview,
       questions,
       answer: answer
-        ? { content: answer.content, sources: answer.sources ?? [] }
+        ? {
+            content: answer.content,
+            sources: answer.sources ?? [],
+            declined: answer.provider === "guard",
+          }
         : undefined,
       restQuestion: REST_QUESTION,
     });

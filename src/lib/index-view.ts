@@ -23,6 +23,8 @@ export type IndexView = {
   ids: string[];
   cells: Record<string, CellView>;
   citedCount: number;
+  /** The latest answer was a guard refusal: no note was read. */
+  declined?: boolean;
 };
 
 export type IndexInput = {
@@ -31,7 +33,7 @@ export type IndexInput = {
   /** Earlier questions in this thread, oldest first. */
   questions: string[];
   /** The latest answer, if any. */
-  answer?: { content: string; sources: string[] };
+  answer?: { content: string; sources: string[]; declined?: boolean };
   /** Shown before anything has been asked, so the lattice is never blank. */
   restQuestion: string;
 };
@@ -74,7 +76,10 @@ export function deriveIndexView(input: IndexInput): IndexView {
   }
 
   if (input.answer) {
-    const { sources, content } = input.answer;
+    const { sources, content, declined } = input.answer;
+    if (declined) {
+      return { phase: "pulled", ids: [], cells: {}, citedCount: 0, declined: true };
+    }
     const { cited } = countCitations(content, sources.length);
     const cells: Record<string, CellView> = {};
     sources.forEach((id, index) => {

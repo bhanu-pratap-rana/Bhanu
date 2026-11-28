@@ -146,6 +146,7 @@ export function modelLabel(provider: string | undefined): string {
   if (provider.startsWith("groq:")) {
     return `${prettyModelName(provider.slice("groq:".length))} on Groq`;
   }
+  if (provider === "guard") return "Declined: outside this copilot's scope";
   if (provider === "local-rag-fallback") return "Offline answer from the index";
   if (provider === "local-rag-fallback:quota") {
     return "Model quota used up for now — answer from the index";

@@ -24,9 +24,15 @@ export function isLit(glow: number): boolean {
   return glow > 0;
 }
 
-/** 1 for every note whose anchor is the active section or inside it. */
+/**
+ * The hero's section id. The hero is the core's own stage, where the demo's
+ * marigold tells the story; no cool section cell is lit there.
+ */
+const HERO_SECTION = "top";
+
+/** 1 for every note whose anchor is the active section or inside it (none in the hero). */
 export function sectionTargets(active: string | null, anchors: string[]): number[] {
-  if (!active) return anchors.map(() => 0);
+  if (!active || active === HERO_SECTION) return anchors.map(() => 0);
   return anchors.map((anchor) =>
     anchor === active || anchor.startsWith(`${active}-`) ? 1 : 0,
   );

@@ -606,7 +606,7 @@ describe("localAnswer", () => {
 
   it("says plainly when nothing matched", () => {
     expect(localAnswer("What is the weather in Paris?", "default", [])).toBe(
-      "The model is unavailable right now and no note matches that question. Email ranabhanu514@gmail.com or read the résumé.",
+      "The model is unavailable right now and no note matches that question. Email ranabhanu514@gmail.com or read the resume.",
     );
   });
 });

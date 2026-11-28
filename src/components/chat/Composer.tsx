@@ -4,6 +4,7 @@ import { ArrowUp, Square } from "lucide-react";
 import { useEffect, useRef, type FormEvent } from "react";
 import { useChat, useChatStore } from "@/components/chat/ChatProvider";
 import { jobDescriptionPrompt } from "@/lib/knowledge";
+import { acceptStopPress } from "@/lib/stop-guard";
 
 const QUESTION_MAX = 1000;
 const isJobDescription = (text: string) =>
@@ -32,12 +33,17 @@ export function Composer() {
   // button out, so it is still in the page and can be asked.
   const stopHadFocus = useRef(false);
   const wasBusy = useRef(busy);
+  // When the current answer started (performance.now()), so a pointer press
+  // that lands on Stop as part of the click that sent it can be ignored.
+  const busySince = useRef<number | null>(null);
 
   useEffect(() => {
     let before = store.getState().status !== "idle";
     return store.subscribe(() => {
       const now = store.getState().status !== "idle";
+      if (!before && now) busySince.current = performance.now();
       if (before && !now) {
+        busySince.current = null;
         // Keyboard focus only: a tap on Stop (Android focuses tapped buttons)
         // must not pull the keyboard up over the answer just stopped.
         stopHadFocus.current =
@@ -134,7 +140,20 @@ export function Composer() {
           key="stop"
           ref={stopRef}
           type="button"
-          onClick={() => store.stop()}
+          // Send turns into Stop under the pointer: the second click of a
+          // double-click on Send must not abort the answer it just asked for.
+          // Keyboard and AT presses (detail 0) always stop (stop-guard.ts).
+          onClick={(event) => {
+            if (
+              acceptStopPress({
+                clickCount: event.detail,
+                now: performance.now(),
+                busySince: busySince.current,
+              })
+            ) {
+              store.stop();
+            }
+          }}
           aria-label="Stop the answer"
           className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-md border border-control text-ink"
         >

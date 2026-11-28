@@ -2,8 +2,14 @@
 // browser for the live index, and given to the model. Private details (phone
 // number, personal alternate email) must never be added here.
 //
-// Source of truth is the résumé PDF in /public. Facts that come from a public
+// Source of truth is the resume PDF in /public. Facts that come from a public
 // repository README instead are marked with `basis: "repo"`.
+//
+// Relative imports only: next.config.ts loads this file (for the CSP).
+
+import { withLiveLinks, type ProjectMedia } from "./project-media";
+
+export type { ProjectMedia };
 
 export type KnowledgeKind =
   | "profile"
@@ -17,8 +23,8 @@ export type KnowledgeKind =
 export type Basis = "resume" | "resume+repo" | "repo" | "publication" | "site";
 
 export const basisLabel: Record<Basis, string> = {
-  resume: "From his résumé",
-  "resume+repo": "From his résumé and the public repository",
+  resume: "From his resume",
+  "resume+repo": "From his resume and the public repository",
   repo: "From the public repository",
   publication: "From the published citation",
   site: "About this site",
@@ -67,15 +73,17 @@ export const profile = {
   linkedin: "https://www.linkedin.com/in/bhanu-pratap-rana/",
   github: GITHUB,
   resumePath: "/bhanu-pratap-rana-resume.pdf",
-  // Hero copy. Every number here is on the résumé.
+  // Hero copy. Every number here is on the resume.
   statement:
     "I build AI that works in Indian languages: semantic search over 1,633 Hindi books, and a Hindi and Assamese learning app piloted with 570+ students in six Assam schools.",
+  // Not rendered: the hero's role line carries the city, and the rest is in
+  // Work and Experience. Kept for the owner's rewrite; nothing reads it.
   status:
-    "Applied AI Engineer in Agra, working across RAG, AI agents and computer vision. Research Assistant (Technical) and AI/ML Engineer at Kendriya Hindi Sansthan since March 2025, and co-founder of Aura AI and Media.",
+    "Based in Agra, working across RAG, AI agents and computer vision. Also co-founder of Aura AI and Media.",
 } as const;
 
 /* ------------------------------------------------------------------ */
-/* Experience — résumé order, résumé wording                           */
+/* Experience — resume order, resume wording                           */
 /* ------------------------------------------------------------------ */
 
 export type ExperienceEntry = {
@@ -87,10 +95,18 @@ export type ExperienceEntry = {
   type: string;
   place: string;
   context?: string;
-  bullets: string[];
+  bullets: ExperienceBullet[];
   stack: string[];
   kbId: string;
 };
+
+/**
+ * One resume bullet. `project` names the Work entry (a project slug) when the
+ * bullet describes a listed project: Experience then links to that project
+ * instead of telling it a second time. Add it to any bullet that becomes a
+ * project; leave it off role facts that belong to no project.
+ */
+export type ExperienceBullet = { text: string; project?: Project["slug"] };
 
 export const experience: ExperienceEntry[] = [
   {
@@ -103,10 +119,10 @@ export const experience: ExperienceEntry[] = [
     context:
       "ICSSR-funded “AI Based Remedial Education Model” under ATAL AI — Vision Viksit Bharat @2047",
     bullets: [
-      "Architected and built ATAL AI 2.0, an offline-first PWA (Next.js 16, React 19, TypeScript, Supabase/pgvector) with Hindi and Assamese curriculum, pre/post assessments, gamification, a voice AI tutor (ai4bharat indic-parler-tts), teacher dashboards with CSV analytics and OTP-based role access.",
-      "Built a multilingual Hindi Semantic Search engine over 1,633 books: MiniLM-L12-v2 embeddings in ChromaDB (HNSW cosine), LangChain LCEL RAG Q&A with Groq LLaMA, and a CrewAI multi-agent metadata pipeline (description generator, category classifier, quality validator).",
-      "Led field research across 6 government schools in Assam covering 570+ students, achieving 50–65% student adoption in pilot comparisons against existing digital learning platforms.",
-      "Built data pipelines and Power BI dashboards for stakeholder reporting; reviewed 22 research papers and contributed to an edited book on AI-enabled education.",
+      { text: "Architected and built ATAL AI 2.0, an offline-first PWA (Next.js 16, React 19, TypeScript, Supabase/pgvector) with Hindi and Assamese curriculum, pre/post assessments, gamification, a voice AI tutor (ai4bharat indic-parler-tts), teacher dashboards with CSV analytics and OTP-based role access.", project: "atal-ai-2-0" },
+      { text: "Built a multilingual Hindi Semantic Search engine over 1,633 books: MiniLM-L12-v2 embeddings in ChromaDB (HNSW cosine), LangChain LCEL RAG Q&A with Groq LLaMA, and a CrewAI multi-agent metadata pipeline (description generator, category classifier, quality validator).", project: "hindi-semantic-search" },
+      { text: "Led field research across 6 government schools in Assam covering 570+ students, achieving 50–65% student adoption in pilot comparisons against existing digital learning platforms." },
+      { text: "Built data pipelines and Power BI dashboards for stakeholder reporting; reviewed 22 research papers and contributed to an edited book on AI-enabled education." },
     ],
     stack: [
       "Next.js 16",
@@ -132,10 +148,10 @@ export const experience: ExperienceEntry[] = [
     context:
       "AI-first beauty technology and media venture (production platform in active development)",
     bullets: [
-      "Designed the end-to-end architecture of an asynchronous AI beauty platform on FastAPI, PostgreSQL, Redis, Celery, Docker and React Native.",
-      "Built computer vision pipelines with MediaPipe and OpenCV for real-time facial analysis, skin-tone detection and personalized makeup recommendation.",
-      "Integrated GPT-4o as an AI beauty assistant for personalized consultations and product recommendations.",
-      "Implemented containerized async processing (Celery + Redis) for production-scale workloads, and multilingual React Native apps for international markets.",
+      { text: "Designed the end-to-end architecture of an asynchronous AI beauty platform on FastAPI, PostgreSQL, Redis, Celery, Docker and React Native.", project: "aura-ai" },
+      { text: "Built computer vision pipelines with MediaPipe and OpenCV for real-time facial analysis, skin-tone detection and personalized makeup recommendation.", project: "aura-ai" },
+      { text: "Integrated GPT-4o as an AI beauty assistant for personalized consultations and product recommendations.", project: "aura-ai" },
+      { text: "Implemented containerized async processing (Celery + Redis) for production-scale workloads, and multilingual React Native apps for international markets." },
     ],
     stack: [
       "FastAPI",
@@ -158,8 +174,8 @@ export const experience: ExperienceEntry[] = [
     type: "Part-time",
     place: "Remote",
     bullets: [
-      "Built an AI-powered API Test Case Generator using Groq LLMs and ChromaDB RAG that generates functional, security and edge-case tests from PDF, DOCX, OpenAPI (JSON/YAML) and TXT documentation.",
-      "Implemented LangChain RAG workflows for context-aware generation, with export pipelines to JSON, CSV, Markdown and pytest.",
+      { text: "Built an AI-powered API Test Case Generator using Groq LLMs and ChromaDB RAG that generates functional, security and edge-case tests from PDF, DOCX, OpenAPI (JSON/YAML) and TXT documentation.", project: "api-test-case-generator" },
+      { text: "Implemented LangChain RAG workflows for context-aware generation, with export pipelines to JSON, CSV, Markdown and pytest.", project: "api-test-case-generator" },
     ],
     stack: ["Groq", "ChromaDB", "LangChain", "OpenAPI", "pytest"],
     kbId: "testneo-api-generator",
@@ -172,14 +188,36 @@ export const experience: ExperienceEntry[] = [
     type: "Internship",
     place: "Gurugram, Haryana (Remote)",
     bullets: [
-      "Built an automated document-processing pipeline over 3,482 files with 95%+ OCR accuracy and sub-second query responses (OpenCV denoising, binarization, contour detection + PyTesseract).",
-      "Built an AI Smart HR Tool (FastAPI + Streamlit) generating job letters, job descriptions and onboarding plans — cut HR workload 50%, improved content accuracy 30% and reduced time-to-hire 25%.",
-      "Created an Azure OpenAI sentiment-analysis platform processing 100 comments/minute — reduced manual review time 70% and improved accuracy 25%.",
+      { text: "Built an automated document-processing pipeline over 3,482 files with 95%+ OCR accuracy and sub-second query responses (OpenCV denoising, binarization, contour detection + PyTesseract)." },
+      { text: "Built an AI Smart HR Tool (FastAPI + Streamlit) generating job letters, job descriptions and onboarding plans — cut HR workload 50%, improved content accuracy 30% and reduced time-to-hire 25%." },
+      { text: "Created an Azure OpenAI sentiment-analysis platform processing 100 comments/minute — reduced manual review time 70% and improved accuracy 25%." },
     ],
     stack: ["OpenCV", "PyTesseract", "FastAPI", "Streamlit", "Azure OpenAI"],
     kbId: "bytical-ai",
   },
 ];
+
+/**
+ * The role line the hero and the link-preview card show: the resume title at
+ * the current employer (the first role still running, in resume order). The
+ * title is the part after the em dash ("Research Assistant (Technical) —
+ * AI/ML Engineer" gives "AI/ML Engineer"); the employer drops its trailing
+ * parenthetical (the ministry), so the line fits one short sentence.
+ */
+export const currentRole: { title: string; org: string; line: string; city?: string } = (() => {
+  const role =
+    experience.find((entry) => entry.period.endsWith("Present")) ?? experience[0];
+  const title = role.title.split(" — ").pop()?.trim() || role.title;
+  const org = role.org.replace(/\s*\([^)]*\)\s*$/, "");
+  // The city only ("Agra, Uttar Pradesh" gives "Agra"); a remote role has none.
+  const city = role.place.split(",")[0].trim();
+  return {
+    title,
+    org,
+    line: `${title} at ${org}`,
+    ...(city && !/^remote\b/i.test(city) ? { city } : {}),
+  };
+})();
 
 /* ------------------------------------------------------------------ */
 /* Work                                                                 */
@@ -200,6 +238,15 @@ export type Project = {
   repoUrl?: string;
   demoUrl?: string;
   demoLabel?: string;
+  /** A working deployment (distinct from demoUrl, an interface preview). https only. */
+  liveUrl?: string;
+  /** Label for liveUrl; defaults to "Live app". */
+  liveLabel?: string;
+  /**
+   * Screenshots, demo videos and walkthrough embeds; the first is the cover.
+   * Files live in public/projects/<slug>/ (see README, "Adding a project demo").
+   */
+  media?: ProjectMedia[];
   /** Honest status or caveat, written as a sentence. */
   note?: string;
   pipeline?: PipelineStep[];
@@ -251,7 +298,7 @@ export const projects: Project[] = [
     slug: "voice-ai-assistant",
     kbId: "voice-ai-assistant",
     name: "Voice AI Assistant",
-    attribution: "Key project on his résumé",
+    attribution: "Key project on his resume",
     summary:
       "A real-time voice assistant. It streams microphone audio to Deepgram for live transcription, then a Groq-hosted LLaMA 3.3 70B either suggests follow-up questions or answers from an uploaded PDF, DOCX or TXT file.",
     stack: ["Deepgram", "Groq LLaMA 3.3 70B", "FastAPI", "React 18", "Vite", "WebSockets"],
@@ -313,7 +360,7 @@ export const projects: Project[] = [
     slug: "eye-disease-classification",
     kbId: "eye-disease-classification",
     name: "Eye Disease Classification",
-    attribution: "Key project on his résumé",
+    attribution: "Key project on his resume",
     summary:
       "Transfer learning on 5,335 fundus images across 10 classes. ResNet50 reached 85% accuracy and 0.85 F1; the VGG19 baseline reached 55% and 0.55.",
     stack: ["TensorFlow/Keras", "Transfer learning", "Scikit-learn"],
@@ -325,7 +372,7 @@ export const projects: Project[] = [
     slug: "custom-document-ai-chatbot",
     kbId: "custom-document-ai-chatbot",
     name: "Custom Document AI Chatbot",
-    attribution: "Key project on his résumé",
+    attribution: "Key project on his resume",
     summary:
       "A document pipeline that reads images with Tesseract OCR, extracts entities with spaCy, summarises with BART, and retrieves through Milvus vector search behind a chat interface.",
     stack: ["Tesseract", "spaCy", "BART", "Milvus", "MySQL"],
@@ -369,8 +416,29 @@ export function getProjectBySlug(slug: string): Project | undefined {
   return projects.find((project) => project.slug === slug);
 }
 
+/** The Work entries a role's bullets describe, each once, in bullet order. */
+export function roleProjects(role: ExperienceEntry): Project[] {
+  const found: Project[] = [];
+  for (const bullet of role.bullets) {
+    const project = bullet.project ? getProjectBySlug(bullet.project) : undefined;
+    if (project && !found.includes(project)) found.push(project);
+  }
+  return found;
+}
+
+/**
+ * The bullets Experience shows under "What I did": those no Work entry
+ * already tells. A bullet naming an unknown slug stays, so a typo never
+ * hides the owner's text.
+ */
+export function roleOwnBullets(role: ExperienceEntry): string[] {
+  return role.bullets
+    .filter((bullet) => !(bullet.project && getProjectBySlug(bullet.project)))
+    .map((bullet) => bullet.text);
+}
+
 /* ------------------------------------------------------------------ */
-/* Skills — the résumé's ten groups, in its order                      */
+/* Skills — the resume's ten groups, in its order                      */
 /* ------------------------------------------------------------------ */
 
 export type SkillGroup = { group: string; items: string[] };
@@ -419,7 +487,7 @@ export const skills: SkillGroup[] = [
 ];
 
 /* ------------------------------------------------------------------ */
-/* Publications & presentations — résumé order, citations verbatim     */
+/* Publications & presentations — resume order, citations verbatim     */
 /* ------------------------------------------------------------------ */
 
 export type Publication = {
@@ -471,7 +539,7 @@ export type EducationEntry = {
   org: string;
   period: string;
   score: string;
-  /** The résumé lists every score; the page shows only the stronger ones. */
+  /** The resume lists every score; the page shows only the stronger ones. */
   showScore: boolean;
 };
 
@@ -489,8 +557,8 @@ export const certifications = [
   { name: "AWS Cloud Practitioner Essentials", issuer: "AWS", year: "2024" },
 ];
 
-export const achievements = [
-  { title: "Best Paper Award", by: "Amity Law School", year: "2025" },
+// The Best Paper Award is shown once, with its paper, under Publications.
+export const achievements: { title: string; by: string; year?: string }[] = [
   { title: "Best Project Showcase", by: "Govt. ITI, Bijnor" },
   { title: "Best Performer Student", by: "MIET Kumaun" },
   { title: "Student of the Year", by: "LIC" },
@@ -511,7 +579,7 @@ export const volunteer = {
 const SKILL = (group: string) =>
   skills.find((entry) => entry.group === group)?.items.join(", ") ?? "";
 
-export const knowledgeBase: KnowledgeItem[] = [
+const notes: KnowledgeItem[] = [
   {
     id: "profile-summary",
     kind: "profile",
@@ -519,9 +587,9 @@ export const knowledgeBase: KnowledgeItem[] = [
     summary:
       "Applied AI Engineer in Agra working on generative AI, RAG, AI agents, computer vision and Python backends, with a focus on Hindi and other Indian languages.",
     tags: ["Applied AI Engineer", "GenAI", "RAG", "AI Agents", "Computer Vision", "FastAPI", "Indic AI", "Hindi"],
-    body: `Bhanu Pratap Rana is an Applied AI Engineer based in Agra, Uttar Pradesh, India. He has worked in AI since July 2024: a machine learning internship at Bytical.ai (July to December 2024), part-time AI engineering at Testneo (December 2024 to February 2025), and a full-time role as Research Assistant (Technical) and AI/ML Engineer at Kendriya Hindi Sansthan, Ministry of Education, since March 2025. Since December 2025 he is also the part-time co-founder of Aura AI and Media. His résumé describes this as 2+ years building AI systems across generative AI, RAG, AI agents, computer vision and Python backends (FastAPI, LangChain, Celery and Redis, PostgreSQL, Docker). His specialism is multilingual and Indic AI: an offline-first Hindi and Assamese learning app piloted with 570+ rural students, and a semantic search engine over 1,633 Hindi books. He has 2 publications (a book chapter and a journal article) and 2 conference presentations, one of which won a Best Paper Award. Spoken languages: English (professional proficiency) and Hindi (native).`,
+    body: `Bhanu Pratap Rana is an Applied AI Engineer based in Agra, Uttar Pradesh, India. He has worked in AI since July 2024: a machine learning internship at Bytical.ai (July to December 2024), part-time AI engineering at Testneo (December 2024 to February 2025), and a full-time role as Research Assistant (Technical) and AI/ML Engineer at Kendriya Hindi Sansthan, Ministry of Education, since March 2025. Since December 2025 he is also the part-time co-founder of Aura AI and Media. His resume describes this as 2+ years building AI systems across generative AI, RAG, AI agents, computer vision and Python backends (FastAPI, LangChain, Celery and Redis, PostgreSQL, Docker). His specialism is multilingual and Indic AI: an offline-first Hindi and Assamese learning app piloted with 570+ rural students, and a semantic search engine over 1,633 Hindi books. He has 2 publications (a book chapter and a journal article) and 2 conference presentations, one of which won a Best Paper Award. Spoken languages: English (professional proficiency) and Hindi (native).`,
     links: [
-      { label: "Résumé (PDF)", href: profile.resumePath },
+      { label: "Resume (PDF)", href: profile.resumePath },
       { label: "GitHub", href: profile.github },
       { label: "LinkedIn", href: profile.linkedin },
     ],
@@ -537,11 +605,11 @@ export const knowledgeBase: KnowledgeItem[] = [
     summary:
       "Offline-first Hindi and Assamese learning app with assessments, a voice tutor and teacher dashboards, piloted with 570+ students in six Assam schools.",
     tags: ["ATAL AI", "PWA", "Offline-first", "Next.js", "React", "TypeScript", "Supabase", "pgvector", "TTS", "Voice tutor", "Education", "Hindi", "Assamese"],
-    body: `ATAL AI 2.0 is an offline-first Progressive Web App for digital and AI literacy that Bhanu architected and built at Kendriya Hindi Sansthan, under the ICSSR-funded "AI Based Remedial Education Model". Stack named in his résumé: Next.js 16, React 19, TypeScript and Supabase with pgvector. It has a Hindi and Assamese curriculum, pre- and post-assessments, gamification, a voice AI tutor using ai4bharat indic-parler-tts, teacher dashboards with CSV analytics, and OTP-based role access. It was piloted with 570+ students across 6 government schools in Assam; his résumé reports 50–65% student adoption in pilot comparisons against existing digital learning platforms (self-reported; the measurement method is not documented here). The public repository adds detail: offline support uses IndexedDB (Dexie), a service worker and a background sync queue with retries; the backend is Supabase (PostgreSQL, Auth, Realtime, pgvector); the curriculum has 568 markdown items; tests are written in Playwright. This project does not use FastAPI, Redis or Celery.`,
+    body: `ATAL AI 2.0 is an offline-first Progressive Web App for digital and AI literacy that Bhanu architected and built at Kendriya Hindi Sansthan, under the ICSSR-funded "AI Based Remedial Education Model". Stack named in his resume: Next.js 16, React 19, TypeScript and Supabase with pgvector. It has a Hindi and Assamese curriculum, pre- and post-assessments, gamification, a voice AI tutor using ai4bharat indic-parler-tts, teacher dashboards with CSV analytics, and OTP-based role access. It was piloted with 570+ students across 6 government schools in Assam; his resume reports 50–65% student adoption in pilot comparisons against existing digital learning platforms (self-reported; the measurement method is not documented here). The public repository adds detail: offline support uses IndexedDB (Dexie), a service worker and a background sync queue with retries; the backend is Supabase (PostgreSQL, Auth, Realtime, pgvector); the curriculum has 568 markdown items; tests are written in Playwright. This project does not use FastAPI, Redis or Celery.`,
     links: [{ label: "Code", href: `${GITHUB}/ATAL-AI-2.0` }],
     anchor: "work-atal-ai-2-0",
     prompt: "How is ATAL AI 2.0 built to work offline, and where does the voice tutor fit?",
-    aliases: ["atal", "learning", "literacy", "students", "pilot", "piloted", "schools", "assam", "offline", "tutor", "classroom", "teachers", "adoption", "edtech", "architecture"],
+    aliases: ["atal", "learning", "literacy", "students", "pilot", "piloted", "schools", "assam", "offline", "tutor", "classroom", "teachers", "adoption", "edtech", "architecture", "production", "shipped", "ship", "users"],
     basis: "resume+repo",
   },
   {
@@ -565,7 +633,7 @@ export const knowledgeBase: KnowledgeItem[] = [
     summary:
       "Real-time voice assistant: Deepgram streaming transcription, then a Groq LLaMA 3.3 70B that suggests follow-ups or answers from an uploaded document.",
     tags: ["Voice AI", "Deepgram", "STT", "Groq", "LLaMA 3.3 70B", "FastAPI", "React", "Vite", "WebSockets", "RAG", "Realtime"],
-    body: `The Voice AI Assistant is a real-time voice assistant. It streams microphone audio to Deepgram nova-2 over WebSockets for live speech-to-text. A Groq-hosted LLaMA 3.3 70B then works in one of two modes: it suggests five follow-up questions from the transcript, or it answers questions from an uploaded PDF, DOCX or TXT file. The frontend is React 18 with Vite; the backend is FastAPI. Read-aloud uses the browser's speech synthesis. His résumé describes the document answering as RAG; in the repository the uploaded document's text is passed to the model as context, without a vector store. Limitation: the hosted GitHub Pages link shows the interface only, and full function needs the backend running locally.`,
+    body: `The Voice AI Assistant is a real-time voice assistant. It streams microphone audio to Deepgram nova-2 over WebSockets for live speech-to-text. A Groq-hosted LLaMA 3.3 70B then works in one of two modes: it suggests five follow-up questions from the transcript, or it answers questions from an uploaded PDF, DOCX or TXT file. The frontend is React 18 with Vite; the backend is FastAPI. Read-aloud uses the browser's speech synthesis. His resume describes the document answering as RAG; in the repository the uploaded document's text is passed to the model as context, without a vector store. Limitation: the hosted GitHub Pages link shows the interface only, and full function needs the backend running locally.`,
     links: [
       { label: "Code", href: `${GITHUB}/voice-assistant` },
       { label: "Interface preview", href: "https://bhanu-pratap-rana.github.io/voice-assistant/" },
@@ -608,7 +676,7 @@ export const knowledgeBase: KnowledgeItem[] = [
     summary:
       "HR document generator on FastAPI and Streamlit with a local Ollama model or a Groq-hosted one, and PDF and DOCX export.",
     tags: ["Smart HR Tool", "FastAPI", "SQLModel", "Alembic", "Pydantic", "Ollama", "Groq", "Streamlit", "HR", "Automation"],
-    body: `Smart HR Tool generates HR documents. Bhanu first built it during his internship at Bytical.ai as a FastAPI and Streamlit tool producing job letters, job descriptions and onboarding plans; his résumé reports that it cut HR workload 50%, improved content accuracy 30% and reduced time-to-hire 25% (self-reported; the measurement method is not documented here). The public repository is a later version with two model options: a local model through Ollama, or Groq's hosted LLaMA 3.3 70B. Its backend is FastAPI with SQLModel, Pydantic and Alembic migrations; documents export to PDF and DOCX. It adds interview questions and performance reviews to the generators and exposes a documented REST API. The repository itself reports no metrics.`,
+    body: `Smart HR Tool generates HR documents. Bhanu first built it during his internship at Bytical.ai as a FastAPI and Streamlit tool producing job letters, job descriptions and onboarding plans; his resume reports that it cut HR workload 50%, improved content accuracy 30% and reduced time-to-hire 25% (self-reported; the measurement method is not documented here). The public repository is a later version with two model options: a local model through Ollama, or Groq's hosted LLaMA 3.3 70B. Its backend is FastAPI with SQLModel, Pydantic and Alembic migrations; documents export to PDF and DOCX. It adds interview questions and performance reviews to the generators and exposes a documented REST API. The repository itself reports no metrics.`,
     links: [{ label: "Code", href: `${GITHUB}/Smart-HR-Tool` }],
     anchor: "work-smart-hr-tool",
     prompt: "What does the Smart HR Tool do, and how is it built?",
@@ -626,7 +694,7 @@ export const knowledgeBase: KnowledgeItem[] = [
     links: [{ label: "Code", href: `${GITHUB}/Eye-Image-Classification-Using-VGG19-and-ResNet50` }],
     anchor: "work-eye-disease-classification",
     prompt: "What were the results of the eye disease classification project, and how far can they be trusted?",
-    aliases: ["eye", "fundus", "retina", "medical", "deep", "learning", "accuracy", "f1", "model", "training", "vision", "image", "images"],
+    aliases: ["eye", "fundus", "retina", "medical", "deep", "learning", "accuracy", "f1", "model", "training", "trained", "train", "neural", "network", "networks", "vision", "image", "images"],
     basis: "resume+repo",
   },
   {
@@ -685,7 +753,7 @@ export const knowledgeBase: KnowledgeItem[] = [
     summary:
       "Current full-time role since March 2025 on an ICSSR-funded AI education project: built ATAL AI 2.0 and the Hindi Semantic Search engine, and led field research in Assam.",
     tags: ["Kendriya Hindi Sansthan", "KHS", "Research Assistant", "AI/ML Engineer", "ICSSR", "ATAL AI", "Semantic Search", "Field Research", "Power BI", "Education"],
-    body: `Bhanu's current job: Research Assistant (Technical) and AI/ML Engineer at Kendriya Hindi Sansthan, Ministry of Education, in Agra. Full-time since March 2025, on the ICSSR-funded "AI Based Remedial Education Model" under ATAL AI — Vision Viksit Bharat @2047. There he architected and built ATAL AI 2.0, an offline-first learning PWA (Next.js 16, React 19, TypeScript, Supabase with pgvector). He built a multilingual Hindi Semantic Search engine over 1,633 books (MiniLM-L12-v2 embeddings in ChromaDB, LangChain LCEL RAG Q&A with Groq LLaMA, and a CrewAI multi-agent metadata pipeline). He led field research across 6 government schools in Assam covering 570+ students; his résumé reports 50–65% student adoption in pilot comparisons against existing digital learning platforms. He built data pipelines and Power BI dashboards for stakeholder reporting, reviewed 22 research papers, and contributed to an edited book on AI-enabled education.`,
+    body: `Bhanu's current job: Research Assistant (Technical) and AI/ML Engineer at Kendriya Hindi Sansthan, Ministry of Education, in Agra. Full-time since March 2025, on the ICSSR-funded "AI Based Remedial Education Model" under ATAL AI — Vision Viksit Bharat @2047. There he architected and built ATAL AI 2.0, an offline-first learning PWA (Next.js 16, React 19, TypeScript, Supabase with pgvector). He built a multilingual Hindi Semantic Search engine over 1,633 books (MiniLM-L12-v2 embeddings in ChromaDB, LangChain LCEL RAG Q&A with Groq LLaMA, and a CrewAI multi-agent metadata pipeline). He led field research across 6 government schools in Assam covering 570+ students; his resume reports 50–65% student adoption in pilot comparisons against existing digital learning platforms. He built data pipelines and Power BI dashboards for stakeholder reporting, reviewed 22 research papers, and contributed to an edited book on AI-enabled education.`,
     links: [{ label: "ATAL AI 2.0 code", href: `${GITHUB}/ATAL-AI-2.0` }],
     anchor: "experience-khs",
     prompt: "What is his current job, and what has he built there?",
@@ -699,7 +767,7 @@ export const knowledgeBase: KnowledgeItem[] = [
     summary:
       "Led field research across 6 government schools in Assam covering 570+ students, with 50–65% student adoption reported in pilot comparisons.",
     tags: ["Field Research", "Pilot", "Assam", "Schools", "Students", "Adoption", "Education", "ATAL AI", "ICSSR"],
-    body: `As part of the ICSSR-funded "AI Based Remedial Education Model" at Kendriya Hindi Sansthan, Bhanu led field research across 6 government schools in Assam covering 570+ students, where ATAL AI 2.0 was piloted. His résumé reports 50–65% student adoption in pilot comparisons against existing digital learning platforms. This figure is self-reported; what was measured and how is not documented on this site, so ask him for the study details. Around the pilot he built data pipelines and Power BI dashboards for stakeholder reporting, reviewed 22 research papers, and contributed to an edited book on AI-enabled education. He presented the ATAL AI web app at the ICALS conference in September 2025.`,
+    body: `As part of the ICSSR-funded "AI Based Remedial Education Model" at Kendriya Hindi Sansthan, Bhanu led field research across 6 government schools in Assam covering 570+ students, where ATAL AI 2.0 was piloted. His resume reports 50–65% student adoption in pilot comparisons against existing digital learning platforms. This figure is self-reported; what was measured and how is not documented on this site, so ask him for the study details. Around the pilot he built data pipelines and Power BI dashboards for stakeholder reporting, reviewed 22 research papers, and contributed to an edited book on AI-enabled education. He presented the ATAL AI web app at the ICALS conference in September 2025.`,
     anchor: "experience-khs",
     prompt: "What happened when ATAL AI 2.0 was piloted with 570+ students?",
     aliases: ["pilot", "piloted", "fieldwork", "field", "rural", "study", "survey", "outcomes", "results", "impact", "users", "happened", "evidence", "real"],
@@ -712,7 +780,7 @@ export const knowledgeBase: KnowledgeItem[] = [
     summary:
       "Internship, July to December 2024: OCR document pipeline over 3,482 files, the first Smart HR Tool, and an Azure OpenAI sentiment-analysis platform.",
     tags: ["Bytical.ai", "Bytical", "Internship", "OCR", "OpenCV", "PyTesseract", "Azure OpenAI", "Sentiment Analysis", "FastAPI", "Streamlit", "Computer Vision"],
-    body: `At Bytical.ai (Gurugram, Haryana, remote; internship, July to December 2024) Bhanu was a Machine Learning Intern. He built an automated document-processing pipeline over 3,482 files with 95%+ OCR accuracy and sub-second query responses, using OpenCV denoising, binarisation and contour detection with PyTesseract. He built an AI Smart HR Tool on FastAPI and Streamlit that generates job letters, job descriptions and onboarding plans; his résumé reports it cut HR workload 50%, improved content accuracy 30% and reduced time-to-hire 25%. He created an Azure OpenAI sentiment-analysis platform processing 100 comments per minute, which his résumé reports reduced manual review time 70% and improved accuracy 25%. These figures are self-reported on his résumé; the measurement method is not documented here.`,
+    body: `At Bytical.ai (Gurugram, Haryana, remote; internship, July to December 2024) Bhanu was a Machine Learning Intern. He built an automated document-processing pipeline over 3,482 files with 95%+ OCR accuracy and sub-second query responses, using OpenCV denoising, binarisation and contour detection with PyTesseract. He built an AI Smart HR Tool on FastAPI and Streamlit that generates job letters, job descriptions and onboarding plans; his resume reports it cut HR workload 50%, improved content accuracy 30% and reduced time-to-hire 25%. He created an Azure OpenAI sentiment-analysis platform processing 100 comments per minute, which his resume reports reduced manual review time 70% and improved accuracy 25%. These figures are self-reported on his resume; the measurement method is not documented here.`,
     anchor: "experience-bytical",
     prompt: "What did he do during his internship at Bytical.ai?",
     aliases: ["intern", "internship", "first", "ocr", "scanned", "sentiment", "comments", "azure", "document", "documents"],
@@ -725,12 +793,12 @@ export const knowledgeBase: KnowledgeItem[] = [
     summary:
       "LLM APIs and frameworks, plus the retrieval stack: LangChain, ChromaDB, pgvector, Milvus, FAISS and MiniLM embeddings.",
     tags: ["GenAI", "LLM", "OpenAI", "GPT-4o", "Azure OpenAI", "Groq", "Ollama", "Hugging Face", "Prompt Engineering", "Pydantic", "RAG", "LangChain", "ChromaDB", "pgvector", "Milvus", "FAISS", "Semantic Search", "TF-IDF"],
-    body: `Skills listed on his résumé. GenAI & LLMs: ${SKILL("GenAI & LLMs")}. RAG & vector search: ${SKILL("RAG & vector search")}. Where they were used: ChromaDB in the Hindi Semantic Search System (with MiniLM-L12-v2 embeddings) and at Testneo; pgvector in ATAL AI 2.0; Milvus in the Custom Document AI Chatbot; FAISS in the Sales Pitch Generator; GPT-4o at Aura AI; Azure OpenAI at Bytical.ai; Ollama in the Smart HR Tool. PyTorch is not listed on his résumé; his deep learning work uses TensorFlow/Keras and Hugging Face Transformers.`,
+    body: `Skills listed on his resume. GenAI & LLMs: ${SKILL("GenAI & LLMs")}. RAG & vector search: ${SKILL("RAG & vector search")}. Where they were used: ChromaDB in the Hindi Semantic Search System (with MiniLM-L12-v2 embeddings) and at Testneo; pgvector in ATAL AI 2.0; Milvus in the Custom Document AI Chatbot; FAISS in the Sales Pitch Generator; GPT-4o at Aura AI; Azure OpenAI at Bytical.ai; Ollama in the Smart HR Tool. PyTorch is not listed on his resume; his deep learning work uses TensorFlow/Keras and Hugging Face Transformers.`,
     anchor: "skills",
     prompt: "Which LLM and retrieval tools has he used, and in which projects?",
     aliases: ["skills", "stack", "tools", "technologies", "tech", "vector", "database", "databases", "llms", "models", "frameworks", "pytorch", "gpt"],
     // FAISS in the Sales Pitch Generator and Ollama in the Smart HR Tool are
-    // known from those repositories, not from the résumé.
+    // known from those repositories, not from the resume.
     basis: "resume+repo",
   },
   {
@@ -740,7 +808,7 @@ export const knowledgeBase: KnowledgeItem[] = [
     summary:
       "CrewAI multi-agent pipelines, tool integration and retry/backoff, used in the Hindi search metadata pipeline.",
     tags: ["AI Agents", "CrewAI", "Multi-agent", "Tool Integration", "Tenacity", "Agentic"],
-    body: `AI agents skills listed on his résumé: ${SKILL("AI agents")}. Where they were used: the Hindi Semantic Search System has a CrewAI multi-agent metadata pipeline with three agents, a description generator, a category classifier and a quality validator.`,
+    body: `AI agents skills listed on his resume: ${SKILL("AI agents")}. Where they were used: the Hindi Semantic Search System has a CrewAI multi-agent metadata pipeline with three agents, a description generator, a category classifier and a quality validator.`,
     anchor: "skills",
     prompt: "What has he built with AI agents?",
     aliases: ["agents", "agent", "orchestration", "crew", "multiagent", "workflow", "workflows"],
@@ -753,10 +821,10 @@ export const knowledgeBase: KnowledgeItem[] = [
     summary:
       "TensorFlow/Keras, Scikit-learn, OpenCV, MediaPipe and OCR, plus Deepgram speech-to-text, Indic text-to-speech, spaCy and BART.",
     tags: ["Machine Learning", "Computer Vision", "TensorFlow", "Keras", "Scikit-learn", "CNN", "OpenCV", "MediaPipe", "OCR", "PyTesseract", "Speech", "Deepgram", "TTS", "NLP", "spaCy", "BART"],
-    body: `Skills listed on his résumé. ML & computer vision: ${SKILL("ML & computer vision")}. Speech & NLP: ${SKILL("Speech & NLP")}. Where they were used: OpenCV and MediaPipe for facial analysis at Aura AI; OpenCV and PyTesseract for the OCR pipeline at Bytical.ai; VGG19 and ResNet50 transfer learning in Eye Disease Classification; Deepgram in the Voice AI Assistant; indic-parler-tts in ATAL AI 2.0; spaCy and BART in the Custom Document AI Chatbot.`,
+    body: `Skills listed on his resume. ML & computer vision: ${SKILL("ML & computer vision")}. Speech & NLP: ${SKILL("Speech & NLP")}. Where they were used: OpenCV and MediaPipe for facial analysis at Aura AI; OpenCV and PyTesseract for the OCR pipeline at Bytical.ai; VGG19 and ResNet50 transfer learning in Eye Disease Classification; Deepgram in the Voice AI Assistant; indic-parler-tts in ATAL AI 2.0; spaCy and BART in the Custom Document AI Chatbot.`,
     anchor: "skills",
     prompt: "Show me his computer vision and speech work.",
-    aliases: ["vision", "cv", "image", "images", "deep", "learning", "ml", "speech", "voice", "nlp", "ocr", "skills"],
+    aliases: ["vision", "cv", "image", "images", "deep", "learning", "ml", "neural", "network", "networks", "speech", "voice", "nlp", "ocr", "skills"],
     basis: "resume",
   },
   {
@@ -766,7 +834,7 @@ export const knowledgeBase: KnowledgeItem[] = [
     summary:
       "Python and FastAPI backends with Celery, Redis and PostgreSQL; Docker and AWS; TypeScript, React, Next.js and React Native; Pandas and Power BI.",
     tags: ["Python", "FastAPI", "SQLModel", "Celery", "Redis", "REST", "WebSockets", "PostgreSQL", "Supabase", "MySQL", "SQL", "Docker", "AWS", "Vercel", "pytest", "TypeScript", "JavaScript", "React", "Next.js", "React Native", "Tailwind CSS", "Pandas", "Power BI"],
-    body: `Skills listed on his résumé. Backend & data: ${SKILL("Backend & data")}. Cloud & DevOps: ${SKILL("Cloud & DevOps")}. Frontend: ${SKILL("Frontend")}. Analytics: ${SKILL("Analytics")}. Where they were used: FastAPI, PostgreSQL, Redis, Celery and Docker in the Aura AI backend; FastAPI in the Voice AI Assistant and Smart HR Tool; Supabase and Next.js in ATAL AI 2.0; React Native at Aura AI; Power BI dashboards at Kendriya Hindi Sansthan. AWS (ECS/Fargate) is listed on his résumé, but no project described here documents where it was used.`,
+    body: `Skills listed on his resume. Backend & data: ${SKILL("Backend & data")}. Cloud & DevOps: ${SKILL("Cloud & DevOps")}. Frontend: ${SKILL("Frontend")}. Analytics: ${SKILL("Analytics")}. Where they were used: FastAPI, PostgreSQL, Redis, Celery and Docker in the Aura AI backend; FastAPI in the Voice AI Assistant and Smart HR Tool; Supabase and Next.js in ATAL AI 2.0; React Native at Aura AI; Power BI dashboards at Kendriya Hindi Sansthan. AWS (ECS/Fargate) is listed on his resume, but no project described here documents where it was used.`,
     anchor: "skills",
     prompt: "What is his backend and deployment experience?",
     aliases: ["backend", "server", "api", "apis", "database", "databases", "cloud", "deployment", "deploy", "devops", "frontend", "full-stack", "fullstack", "web", "mobile", "analytics", "dashboards", "skills", "aws"],
@@ -779,7 +847,7 @@ export const knowledgeBase: KnowledgeItem[] = [
     summary:
       "A book chapter on Hindi library automation with semantic search (ILA, 2026) and a journal article on AI and human creativity (Shodh Bhumi, 2025).",
     tags: ["Publications", "Research", "Book Chapter", "Journal Article", "ILA", "Shodh Bhumi", "Semantic Search"],
-    body: `Bhanu has 2 publications. (1) Rana, B. P., & Mandusia, A. K. (2026). "Transforming Hindi Library Automation: Semantic Search and AI-Enhanced Metadata." Book chapter, 71st Annual ILA International Conference Proceedings, Indian Library Association, New Delhi & Kendriya Hindi Sansthan, Agra, p. 302. He is first author. (2) Kumari, S., Rana, B. P., & Tripathi, M. (2025). "Artificial Intelligence and Human Creativity: A Collaborative or Inhibitory Relationship." Shodh Bhumi, ISSN 3048-6203, Vol. 2, Issue 2, pp. 672–690. He is second author. His résumé does not state whether these venues are peer-reviewed.`,
+    body: `Bhanu has 2 publications. (1) Rana, B. P., & Mandusia, A. K. (2026). "Transforming Hindi Library Automation: Semantic Search and AI-Enhanced Metadata." Book chapter, 71st Annual ILA International Conference Proceedings, Indian Library Association, New Delhi & Kendriya Hindi Sansthan, Agra, p. 302. He is first author. (2) Kumari, S., Rana, B. P., & Tripathi, M. (2025). "Artificial Intelligence and Human Creativity: A Collaborative or Inhibitory Relationship." Shodh Bhumi, ISSN 3048-6203, Vol. 2, Issue 2, pp. 672–690. He is second author. His resume does not state whether these venues are peer-reviewed.`,
     anchor: "publications",
     prompt: "What has he published?",
     aliases: ["papers", "paper", "published", "publication", "journal", "chapter", "author", "writing", "academic", "research", "peer-reviewed"],
@@ -818,7 +886,7 @@ export const knowledgeBase: KnowledgeItem[] = [
     summary:
       "Oracle OCI 2025 AI Foundations Associate, Generative AI Mastermind, Full Stack Web Development, and AWS Cloud Practitioner Essentials.",
     tags: ["Certifications", "Oracle", "OCI", "AWS", "Outskill", "Apna College"],
-    body: `Certifications listed on his résumé: OCI 2025 Certified AI Foundations Associate, Oracle (2025). Generative AI Mastermind, Outskill (2025). Full Stack Web Development (Delta), Apna College (2025). AWS Cloud Practitioner Essentials, AWS (2024).`,
+    body: `Certifications listed on his resume: OCI 2025 Certified AI Foundations Associate, Oracle (2025). Generative AI Mastermind, Outskill (2025). Full Stack Web Development (Delta), Apna College (2025). AWS Cloud Practitioner Essentials, AWS (2024).`,
     anchor: "background",
     prompt: "Which certifications does he hold?",
     aliases: ["certificates", "certificate", "certified", "certification", "courses", "course", "training"],
@@ -831,7 +899,7 @@ export const knowledgeBase: KnowledgeItem[] = [
     summary:
       "Best Paper Award (2025), Best Project Showcase, Best Performer Student and Student of the Year.",
     tags: ["Achievements", "Awards", "Best Paper Award", "Honours"],
-    body: `Achievements listed on his résumé: Best Paper Award, Amity Law School (2025), for a co-authored paper at the National Conference on the Intersection of AI and Law. Best Project Showcase, Govt. ITI, Bijnor. Best Performer Student, MIET Kumaun. Student of the Year, LIC.`,
+    body: `Achievements listed on his resume: Best Paper Award, Amity Law School (2025), for a co-authored paper at the National Conference on the Intersection of AI and Law. Best Project Showcase, Govt. ITI, Bijnor. Best Performer Student, MIET Kumaun. Student of the Year, LIC.`,
     anchor: "background",
     prompt: "What awards has he received?",
     aliases: ["honours", "honors", "recognition", "prizes", "award", "winner", "achievement"],
@@ -855,18 +923,21 @@ export const knowledgeBase: KnowledgeItem[] = [
     kind: "profile",
     title: "Contact and availability",
     summary:
-      "Email ranabhanu514@gmail.com, or reach him on LinkedIn or GitHub. The résumé PDF is on this site.",
-    tags: ["Contact", "Email", "LinkedIn", "GitHub", "Résumé", "Availability"],
-    body: `To contact Bhanu: email ranabhanu514@gmail.com, or message him on LinkedIn (linkedin.com/in/bhanu-pratap-rana). His code is on GitHub (github.com/bhanu-pratap-rana). His résumé can be downloaded as a PDF from this site. He is based in Agra, Uttar Pradesh, India. His phone number is on the résumé PDF and is not given by this assistant. Notice period, salary expectations, relocation and remote-work preferences are not stated on his résumé: ask him by email.`,
+      "Email ranabhanu514@gmail.com, or reach him on LinkedIn or GitHub. The resume PDF is on this site.",
+    tags: ["Contact", "Email", "LinkedIn", "GitHub", "Resume", "Availability"],
+    body: `To contact Bhanu: email ranabhanu514@gmail.com, or message him on LinkedIn (linkedin.com/in/bhanu-pratap-rana). His code is on GitHub (github.com/bhanu-pratap-rana). His resume can be downloaded as a PDF from this site. He is based in Agra, Uttar Pradesh, India. His phone number is on the resume PDF and is not given by this assistant. Notice period, salary expectations, relocation and remote-work preferences are not stated on his resume: ask him by email.`,
     links: [
       { label: "Email", href: `mailto:${profile.email}` },
       { label: "LinkedIn", href: profile.linkedin },
       { label: "GitHub", href: profile.github },
-      { label: "Résumé (PDF)", href: profile.resumePath },
+      { label: "Resume (PDF)", href: profile.resumePath },
     ],
     anchor: "contact",
-    prompt: "How do I contact him and get his résumé?",
-    aliases: ["reach", "email", "mail", "phone", "call", "message", "resume", "cv", "hire", "hiring", "interview", "available", "availability", "notice", "relocation", "relocate", "remote", "linkedin"],
+    prompt: "How do I contact him and get his resume?",
+    // The page writes "resume" plain; visitors may still type the accented
+    // word, which the tokenizer keeps as-is, so it is a synonym here (escaped:
+    // resume-spelling.test.ts keeps the accented spelling out of the source).
+    aliases: ["reach", "email", "mail", "phone", "call", "message", "resume", "r\u00e9sum\u00e9", "cv", "hire", "hiring", "interview", "available", "availability", "notice", "relocation", "relocate", "remote", "linkedin"],
     basis: "resume",
   },
   {
@@ -876,7 +947,7 @@ export const knowledgeBase: KnowledgeItem[] = [
     summary:
       "This site's assistant: a keyword-and-tag retriever over about two dozen hand-written notes, a Groq-hosted model, and cited answers. No vector database.",
     tags: ["This site", "Copilot", "RAG", "Retrieval", "Citations", "Next.js", "Groq", "Evaluation"],
-    body: `This portfolio's copilot is a small retrieval-augmented system that Bhanu built with Next.js 16 and TypeScript. The knowledge base is about two dozen hand-written notes drawn from his résumé and public repositories. Retrieval is lexical: each question is tokenised, expanded with a small synonym and Hindi-to-English word list, and scored against each note's title, tags and text. It is keyword and tag matching, not embeddings and not a vector database. The whole knowledge base would fit in the model's prompt, so retrieval is not needed for capacity. It is kept because a short numbered list of notes makes every citation checkable, keeps each request inside a small token budget, and is the layer that would be swapped for embeddings if the corpus grew. The project where he did use embeddings and a vector database is the Hindi Semantic Search System (MiniLM and ChromaDB). The top notes are sent with the question to a Groq-hosted open model, which answers with numbered citations. The same scoring function runs in the browser, which is how the index lights up while you type. If the model is unavailable, the site answers from the matching notes directly and says so. Retrieval is checked by golden questions in English, Hindi and Roman-script Hindi: the test suite runs them in CI, and the page recomputes and prints the result on every build.`,
+    body: `This portfolio's copilot is a small retrieval-augmented system that Bhanu built with Next.js 16 and TypeScript. The knowledge base is about two dozen hand-written notes drawn from his resume and public repositories. Retrieval is lexical: each question is tokenised, expanded with a small synonym and Hindi-to-English word list, and scored against each note's title, tags and text. It is keyword and tag matching, not embeddings and not a vector database. The whole knowledge base would fit in the model's prompt, so retrieval is not needed for capacity. It is kept because a short numbered list of notes makes every citation checkable, keeps each request inside a small token budget, and is the layer that would be swapped for embeddings if the corpus grew. The project where he did use embeddings and a vector database is the Hindi Semantic Search System (MiniLM and ChromaDB). The top notes are sent with the question to a Groq-hosted open model, which answers with numbered citations. The same scoring function runs in the browser, which is how the index lights up while you type. If the model is unavailable, the site answers from the matching notes directly and says so. Retrieval is checked by golden questions in English, Hindi and Roman-script Hindi: the test suite runs them in CI, and the page recomputes and prints the result on every build.`,
     links: [{ label: "Source code", href: `${GITHUB}/Bhanu` }],
     anchor: "how",
     prompt: "How does this copilot retrieve and cite, and why no vector database?",
@@ -884,6 +955,12 @@ export const knowledgeBase: KnowledgeItem[] = [
     basis: "site",
   },
 ];
+
+/**
+ * The notes the copilot reads. A project's working deployment (liveUrl) is
+ * put first in its note's links, so the copilot can cite and link the live app.
+ */
+export const knowledgeBase: KnowledgeItem[] = withLiveLinks(notes, projects);
 
 /**
  * A note's name for chips, captions and lists. The four skill notes share the
@@ -908,14 +985,35 @@ export function getProjectDetail(project: Project): KnowledgeItem | undefined {
 
 export type Starter = { question: string; lang?: "hi" };
 
+// Recruiter questions first (who he is, then what real people used), then
+// the Hindi and engineering ones; the question about this copilot itself last.
 export const starterQuestions: Starter[] = [
   { question: "Summarise Bhanu in 30 seconds: role, experience and location." },
-  { question: "How does the Hindi Semantic Search pipeline work, end to end?" },
   { question: "What happened when ATAL AI 2.0 was piloted with 570+ students?" },
   { question: "भानु ने हिंदी के लिए कौन-कौन से AI प्रोजेक्ट बनाए हैं?", lang: "hi" },
+  { question: "How does the Hindi Semantic Search pipeline work, end to end?" },
   { question: "How does this copilot retrieve and cite, and why no vector database?" },
 ];
 
+/**
+ * Where the copilot panel puts "Paste a job description" among the starter
+ * questions: second, right after the summary, because it is the one that
+ * saves a recruiter the most time. The hero's demo only plays the questions.
+ */
+export const JOB_DESCRIPTION_STARTER_INDEX = 1;
+
+export type PanelStarter = ({ kind: "question" } & Starter) | { kind: "job-description" };
+
+/** The copilot panel's starters in order: the questions with the job-description entry slotted in. */
+export function panelStarters(): PanelStarter[] {
+  const questions: PanelStarter[] = starterQuestions.map((starter) => ({
+    kind: "question",
+    ...starter,
+  }));
+  const at = Math.min(Math.max(0, JOB_DESCRIPTION_STARTER_INDEX), questions.length);
+  return [...questions.slice(0, at), { kind: "job-description" }, ...questions.slice(at)];
+}
+
 /** Prefilled into the composer; the visitor pastes the description after it. */
 export const jobDescriptionPrompt =
-  "Compare Bhanu against this job description. List what is evidenced, what is adjacent, and what is not on his résumé:\n\n";
+  "Compare Bhanu against this job description. List what is evidenced, what is adjacent, and what is not on his resume:\n\n";

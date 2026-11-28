@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 // is what is under test, not its fonts.
 vi.mock("next/font/google", () => {
   const font = () => ({ variable: "font", className: "font", style: {} });
-  return { Anek_Latin: font, Anek_Devanagari: font };
+  return { Eczar: font, Schibsted_Grotesk: font, Hind: font };
 });
 
 import { projects } from "@/lib/knowledge";

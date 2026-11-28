@@ -29,7 +29,7 @@
 ## Links
 
 - [Website](https://bhanu-xi.vercel.app)
-- [Résumé (PDF)](https://bhanu-xi.vercel.app/bhanu-pratap-rana-resume.pdf)
+- [Resume (PDF)](https://bhanu-xi.vercel.app/bhanu-pratap-rana-resume.pdf)
 - [GitHub](https://github.com/bhanu-pratap-rana)
 - [LinkedIn](https://www.linkedin.com/in/bhanu-pratap-rana/)
 

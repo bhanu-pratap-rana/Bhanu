@@ -5,10 +5,18 @@
 
 import { countCitations, stripCitations, tidySpaces } from "../components/markdown";
 import {
-  ASSISTANT_CHARS,
+  ANSWER_SIGNATURE_SEPARATOR,
+  ASSISTANT_SEND_CHARS,
   CUT_OFF_SUFFIX,
   EARLIER_USER_CHARS,
+  EARLIER_USER_SEND_CHARS,
+  SIGNATURE_HEADER,
+  SIGNATURE_PATTERN,
+  SIGNATURE_TRAILER,
+  SIGNED_ANSWER_CHARS,
+  SIGNED_USER_CHARS,
   parseChatRequest,
+  signedPrefix,
 } from "./chat-request";
 import {
   getKnowledgeItem,
@@ -37,7 +45,18 @@ export type ChatMessage = {
   stopped?: boolean;
   firstTextMs?: number;
   totalMs?: number;
+  /**
+   * The server's signature over this answer and its question. Sent back with
+   * the history; the server drops an earlier answer that has none.
+   */
+  sig?: string;
 };
+
+const SIGNATURE = SIGNATURE_PATTERN;
+
+function validSig(value: unknown): string | undefined {
+  return typeof value === "string" && SIGNATURE.test(value) ? value : undefined;
+}
 
 export type ChatStatus = "idle" | "retrieving" | "streaming";
 
@@ -48,7 +67,11 @@ export type ChatState = {
   draft: string;
   /** A starter question being pointed at; previews its retrieval. */
   preview: string | null;
-  /** Whether the phone dialog is open. Ignored on wide screens. */
+  /**
+   * Whether the copilot is open: the modal dialog on phones, the floating
+   * window (with the core docked into it) on laptops, per DESKTOP_QUERY in
+   * copilot-host.ts. Kept in memory only, never persisted.
+   */
   open: boolean;
   /** Incremented to ask the composer to take focus. */
   focusRequest: number;
@@ -117,6 +140,7 @@ export function reviveMessages(raw: unknown): ChatMessage[] {
         typeof message.provider === "string" ? message.provider : undefined,
       stopped: message.stopped === true ? true : undefined,
       sourcesUnknown: message.sourcesUnknown === true ? true : undefined,
+      sig: message.role === "assistant" ? validSig(message.sig) : undefined,
     });
   }
   // A thread must start with a question and never end on one.
@@ -164,16 +188,42 @@ export function historyFor(messages: ChatMessage[]) {
   return messages
     .filter((message) => message.kind !== "notice" && message.content.trim())
     .slice(-HISTORY_LIMIT)
-    .map(({ role, content }) => ({
-      role,
-      // Mirror the server's budget so long earlier turns never push the
-      // request over its size limit. The cut-off notice is site copy, not
-      // the model's words, so it never goes back to the model.
-      content: (role === "assistant" && content.endsWith(CUT_OFF_SUFFIX)
-        ? content.slice(0, -CUT_OFF_SUFFIX.length)
-        : content
-      ).slice(0, role === "user" ? EARLIER_USER_CHARS : ASSISTANT_CHARS),
-    }));
+    .map(({ role, content, sig }) => {
+      // The cut-off notice is site copy, not the model's words, so it never
+      // goes back to the model.
+      const text =
+        role === "assistant" && content.endsWith(CUT_OFF_SUFFIX)
+          ? content.slice(0, -CUT_OFF_SUFFIX.length)
+          : content;
+      return {
+        role,
+        // Enough to carry the part the signature covers (a count of non-space
+        // characters), capped so long turns never push the request over its
+        // size limit. The server clips again before the model sees it.
+        content:
+          role === "user"
+            ? text.slice(
+                0,
+                Math.max(
+                  EARLIER_USER_CHARS,
+                  signedPrefix(text, SIGNED_USER_CHARS, EARLIER_USER_SEND_CHARS).length,
+                ),
+              )
+            : signedPrefix(text, SIGNED_ANSWER_CHARS, ASSISTANT_SEND_CHARS),
+        ...(role === "assistant" && sig ? { sig } : {}),
+      };
+    });
+}
+
+/** The answer text and, after the separator, a streamed signature. */
+function splitTrailer(buffer: string, trailer: boolean): { text: string; sig?: string } {
+  if (!trailer) return { text: buffer };
+  const cut = buffer.indexOf(ANSWER_SIGNATURE_SEPARATOR);
+  if (cut < 0) return { text: buffer };
+  return {
+    text: buffer.slice(0, cut),
+    sig: validSig(buffer.slice(cut + ANSWER_SIGNATURE_SEPARATOR.length).trim()),
+  };
 }
 
 /**
@@ -390,17 +440,20 @@ export function createChatStore(deps: ChatStoreDeps = {}) {
       preview: null,
       announcement:
         local.ranked.length > 0
-          ? `Pulled ${local.ranked.length} of ${NOTE_COUNT} notes.`
+          ? `Found ${local.ranked.length} of ${NOTE_COUNT} notes.`
           : "No note matches those keywords.",
     });
 
     controller = new AbortController();
     let buffer = "";
+    // The server announced that a signature follows the streamed text.
+    let trailer = false;
+    const visible = () => splitTrailer(buffer, trailer).text;
     let flushQueued = false;
     const flush = () => {
       flushQueued = false;
       if (state.streamingId !== assistantId) return;
-      patchMessage(assistantId, { content: tidySpaces(buffer) });
+      patchMessage(assistantId, { content: tidySpaces(visible()) });
     };
 
     try {
@@ -411,6 +464,8 @@ export function createChatStore(deps: ChatStoreDeps = {}) {
         body: JSON.stringify({
           mode: options.mode ?? "default",
           messages: history,
+          // Ask for a signature after the streamed text (an older server ignores it).
+          sign: true,
         }),
       });
 
@@ -419,6 +474,10 @@ export function createChatStore(deps: ChatStoreDeps = {}) {
         if (mine === run) fail(assistantId, error);
         return;
       }
+
+      const sigHeader = response.headers.get(SIGNATURE_HEADER);
+      trailer = sigHeader === SIGNATURE_TRAILER;
+      const headerSig = trailer ? undefined : validSig(sigHeader);
 
       // The server's list is the truth about what the model was given.
       const serverSources = parseSourceIds(response.headers.get("x-sources"));
@@ -455,7 +514,7 @@ export function createChatStore(deps: ChatStoreDeps = {}) {
         const { done, value } = await reader.read();
         if (value) {
           buffer += decoder.decode(value, { stream: true });
-          if (first && buffer.trim()) {
+          if (first && visible().trim()) {
             first = false;
             set({ status: "streaming" });
             patchMessage(assistantId, { firstTextMs: now() - startedAt });
@@ -469,14 +528,20 @@ export function createChatStore(deps: ChatStoreDeps = {}) {
       }
       buffer += decoder.decode();
 
-      const content = tidySpaces(buffer.trim());
+      const finished = splitTrailer(buffer, trailer);
+      const content = tidySpaces(finished.text.trim());
       if (!content) {
         fail(assistantId, "The model returned no text. Ask again.");
         return;
       }
       const reply = state.messages.find((message) => message.id === assistantId);
       const sourceCount = reply?.sources?.length ?? 0;
-      patchMessage(assistantId, { content, totalMs: now() - startedAt });
+      const sig = finished.sig ?? headerSig;
+      patchMessage(assistantId, {
+        content,
+        totalMs: now() - startedAt,
+        ...(sig ? { sig } : {}),
+      });
       const { cited } = countCitations(content, sourceCount);
       const text = stripCitations(content).slice(0, 700);
       set({
@@ -490,8 +555,9 @@ export function createChatStore(deps: ChatStoreDeps = {}) {
         typeof DOMException !== "undefined" &&
         error instanceof DOMException &&
         error.name === "AbortError";
-      if (aborted && buffer.trim()) {
-        patchMessage(assistantId, { content: tidySpaces(buffer.trim()), stopped: true });
+      if (aborted && visible().trim()) {
+        // A stopped answer has no signature, so it is not sent back as history.
+        patchMessage(assistantId, { content: tidySpaces(visible().trim()), stopped: true });
         set({ announcement: "Stopped." });
       } else if (aborted) {
         fail(assistantId, "Stopped before any text arrived.");
@@ -547,7 +613,11 @@ export function createChatStore(deps: ChatStoreDeps = {}) {
     setPreview(preview: string | null) {
       if (preview !== state.preview) set({ preview });
     },
-    /** Opens the phone dialog. `focus` also asks the composer to take focus. */
+    /**
+     * Opens the copilot (phone dialog or laptop window). `focus` also asks
+     * for the field; the phone dialog honours that only with a fine pointer
+     * (dialogFocusOnOpen in copilot-host.ts).
+     */
     open(options: { focus?: boolean } = {}) {
       set({
         open: true,

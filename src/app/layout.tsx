@@ -1,29 +1,45 @@
 import type { Metadata, Viewport } from "next";
-import { Anek_Devanagari, Anek_Latin } from "next/font/google";
+import { Eczar, Hind, Schibsted_Grotesk } from "next/font/google";
 import { ChatProvider } from "@/components/chat/ChatProvider";
 import { CopilotHost } from "@/components/chat/CopilotHost";
-import { AskBar } from "@/components/chat/AskBar";
+import { SkipToCopilot } from "@/components/chat/SkipToCopilot";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { SiteHeader } from "@/components/site/SiteHeader";
+import { PORTRAIT_JPG } from "@/components/site/HexPortrait";
 import { MemoryCore } from "@/components/scene/MemoryCore";
 import { education, experience, profile } from "@/lib/knowledge";
 import { baseOpenGraph, siteName, siteUrl } from "@/lib/site";
 import "./globals.css";
 
-// One design drawn for both scripts, so English and Hindi sit together
-// without a change of voice. The width axis gives the condensed display cut.
-const anekLatin = Anek_Latin({
+// Display: Eczar, one design drawn for Latin and Devanagari, so the name and
+// its Hindi twin read as one mark. Variable weight (one file per script).
+// Latin only here: a root-layout font is preloaded on every route, and the
+// Devanagari name (a line beside the hero h1, not inside it) is shown only on
+// the home page, which loads that file itself (sections/hero-fonts.ts).
+const eczar = Eczar({
   subsets: ["latin"],
-  axes: ["wdth"],
-  variable: "--font-anek-latin",
+  variable: "--font-eczar",
   display: "swap",
 });
 
-const anekDevanagari = Anek_Devanagari({
-  subsets: ["devanagari"],
-  axes: ["wdth"],
-  variable: "--font-anek-deva",
+// Body, UI and chat. Latin only: the font has no Devanagari.
+const schibsted = Schibsted_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-schibsted",
   display: "swap",
+});
+
+// Hindi inside body text (the hero's starter, chat answers, the ticker):
+// a text Devanagari after Schibsted in the stack. Static weights, so only
+// the ones used: 400 text, 500 medium, 600 for bold in answers (markdown
+// sets <strong> semibold; with font-synthesis off it would drop to 500).
+// Not preloaded: unicode-range fetches it only on pages that show Hindi.
+const hind = Hind({
+  subsets: ["devanagari"],
+  weight: ["400", "500", "600"],
+  variable: "--font-hind",
+  display: "swap",
+  preload: false,
 });
 
 export const viewport: Viewport = {
@@ -34,12 +50,12 @@ export const viewport: Viewport = {
   // in view. iOS ignores this and scrolls the focused field into view itself.
   interactiveWidget: "resizes-content",
   colorScheme: "dark light",
-  themeColor: "#0a1024",
+  themeColor: "#060a1c",
 };
 
 const title = `${profile.name} — ${profile.title}`;
 const description =
-  "Applied AI Engineer in Agra building retrieval, agent and vision systems, with a focus on Hindi and other Indian languages. Ask the site's copilot and watch which notes it retrieves.";
+  "Applied AI Engineer in Agra building AI for Indian languages: semantic search over 1,633 Hindi books, a learning app piloted with 570+ students. Ask his copilot.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -87,6 +103,7 @@ const personJsonLd = {
   jobTitle: profile.title,
   email: `mailto:${profile.email}`,
   url: siteUrl,
+  image: new URL(PORTRAIT_JPG, siteUrl).toString(),
   address: {
     "@type": "PostalAddress",
     addressLocality: "Agra",
@@ -123,7 +140,7 @@ const websiteJsonLd = {
 
 // Runs before first paint so a stored theme choice never flashes. Night is
 // the default; light is only ever the visitor's own choice.
-const themeScript = `(function(){try{var t=localStorage.getItem("theme");if(t==="light"){document.documentElement.setAttribute("data-theme",t);document.querySelectorAll('meta[name="theme-color"]').forEach(function(m){m.setAttribute("content","#eef1f8")})}}catch(e){}})()`;
+const themeScript = `(function(){try{var t=localStorage.getItem("theme");if(t==="light"){document.documentElement.setAttribute("data-theme",t);document.querySelectorAll('meta[name="theme-color"]').forEach(function(m){m.setAttribute("content","#eef1fb")})}}catch(e){}})()`;
 
 export default function RootLayout({
   children,
@@ -133,7 +150,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${anekLatin.variable} ${anekDevanagari.variable} antialiased`}
+      className={`${eczar.variable} ${schibsted.variable} ${hind.variable} antialiased`}
       suppressHydrationWarning
     >
       <head>
@@ -156,12 +173,6 @@ export default function RootLayout({
         >
           Skip to content
         </a>
-        <a
-          href="#copilot"
-          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-16 focus:z-50 focus:rounded-md focus:bg-ink focus:px-4 focus:py-3 focus:text-[15px] focus:text-ground max-lg:hidden"
-        >
-          Skip to the copilot
-        </a>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(personJsonLd) }}
@@ -171,6 +182,9 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
         />
         <ChatProvider>
+          {/* Inside the provider: it opens the closed window. Still the
+              second stop in the tab order, right after "Skip to content". */}
+          <SkipToCopilot />
           <MemoryCore />
           <div className="shell">
             <div className="page" id="page">
@@ -178,9 +192,11 @@ export default function RootLayout({
               {children}
               <SiteFooter />
             </div>
-            <CopilotHost />
           </div>
-          <AskBar />
+          {/* After the page, outside the shell's stacking context: the
+              floating window and its launcher sit above everything but the
+              modal dialog (which is in the top layer anyway). */}
+          <CopilotHost />
         </ChatProvider>
       </body>
     </html>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clientKey, rateLimit } from "./rate-limit";
+import { DIRECT_CLIENT_KEY, clientKey, rateLimit, trustsProxy } from "./rate-limit";
 
 const WINDOW_MS = 60_000;
 const MAX_REQUESTS = 15;
@@ -64,13 +64,55 @@ describe("clientKey", () => {
       "x-forwarded-for": "1.1.1.1, 2.2.2.2",
     };
     expect(clientKey(req(headers), { onVercel: true })).toBe("9.9.9.9");
-    expect(clientKey(req(headers), { onVercel: false })).toBe("2.2.2.2");
+    expect(clientKey(req(headers), { onVercel: false, trustProxy: true })).toBe("2.2.2.2");
   });
 
-  it("off Vercel, uses the hop added by the nearest proxy, not the caller's claim", () => {
+  it("behind a trusted proxy, uses the hop it added, not the caller's claim", () => {
     expect(
-      clientKey(req({ "x-forwarded-for": "spoofed, 3.3.3.3" }), { onVercel: false }),
+      clientKey(req({ "x-forwarded-for": "spoofed, 3.3.3.3" }), {
+        onVercel: false,
+        trustProxy: true,
+      }),
     ).toBe("3.3.3.3");
-    expect(clientKey(req({}), { onVercel: false })).toBe("anonymous");
+    expect(clientKey(req({}), { onVercel: false, trustProxy: true })).toBe("anonymous");
+  });
+
+  it("with no trusted proxy, ignores X-Forwarded-For and uses one shared key", () => {
+    const keys = ["1.1.1.1", "2.2.2.2", "spoofed, 3.3.3.3"].map((ip) =>
+      clientKey(req({ "x-forwarded-for": ip }), { onVercel: false, trustProxy: false }),
+    );
+    expect(new Set(keys)).toEqual(new Set([DIRECT_CLIENT_KEY]));
+    expect(clientKey(req({}), { onVercel: false, trustProxy: false })).toBe(DIRECT_CLIENT_KEY);
+  });
+
+  it("reads the environment when not told", () => {
+    const saved = { VERCEL: process.env.VERCEL, TRUST_PROXY: process.env.TRUST_PROXY };
+    const spoofed = req({ "x-forwarded-for": "7.7.7.7" });
+    try {
+      delete process.env.VERCEL;
+      delete process.env.TRUST_PROXY;
+      expect(clientKey(spoofed)).toBe(DIRECT_CLIENT_KEY);
+      process.env.TRUST_PROXY = "1";
+      expect(clientKey(spoofed)).toBe("7.7.7.7");
+      process.env.TRUST_PROXY = "true";
+      expect(clientKey(spoofed)).toBe(DIRECT_CLIENT_KEY);
+      delete process.env.TRUST_PROXY;
+      process.env.VERCEL = "1";
+      expect(clientKey(spoofed)).toBe("7.7.7.7");
+    } finally {
+      for (const [k, v] of Object.entries(saved)) {
+        if (v === undefined) delete process.env[k];
+        else process.env[k] = v;
+      }
+    }
+  });
+});
+
+describe("trustsProxy", () => {
+  it("is true on Vercel or with TRUST_PROXY=1 only", () => {
+    expect(trustsProxy({})).toBe(false);
+    expect(trustsProxy({ VERCEL: "1" })).toBe(true);
+    expect(trustsProxy({ TRUST_PROXY: "1" })).toBe(true);
+    expect(trustsProxy({ TRUST_PROXY: "0" })).toBe(false);
   });
 });

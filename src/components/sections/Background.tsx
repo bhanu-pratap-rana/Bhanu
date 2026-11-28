@@ -22,7 +22,7 @@ export function Background() {
         {education.map((entry) => (
           <li
             key={entry.degree}
-            className="border-t border-hairline py-3 first:border-t-0 md:grid md:grid-cols-[15rem_minmax(0,1fr)] md:gap-8"
+            className="border-t border-hairline py-3 first:border-t-0 md:grid md:grid-cols-[15rem_minmax(0,46rem)] md:gap-8"
           >
             <p className="text-[15px] text-muted">{entry.period}</p>
             <p>
@@ -50,6 +50,7 @@ export function Background() {
             ))}
           </ul>
         </div>
+        {/* The Best Paper Award is under Publications, with its paper. */}
         <div>
           <h3 className="font-semibold">Recognition</h3>
           <ul className="mt-2 space-y-2 text-[16px] leading-[1.45]">

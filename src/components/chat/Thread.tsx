@@ -1,12 +1,14 @@
 "use client";
 
 import { memo, useEffect, useRef, useState } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { useChat, useChatStore } from "@/components/chat/ChatProvider";
 import { NoteDetail } from "@/components/chat/NoteDetail";
 import { countCitations, MessageBody, stripCitations } from "@/components/markdown";
 import { NOTE_COUNT, type ChatMessage } from "@/lib/chat-store";
 import { modelLabel } from "@/lib/groq-models";
 import { DEEP_LINK_MAX } from "@/lib/chat-store";
+import { moreReadLabel, splitSources } from "@/lib/index-caption";
 import {
   getKnowledgeItem,
   shortTitle,
@@ -81,8 +83,9 @@ const Answer = memo(function Answer({
 }>) {
   const store = useChatStore();
   const [openId, setOpenId] = useState<string | null>(null);
-  // Set when a note is opened from a citation inside the text, which sits
-  // below the note: move there, or the tap looks like it did nothing.
+  // Set when a note is opened from a citation inside the text: the note
+  // opens below the answer, so move there, or the tap looks like it did
+  // nothing.
   const [fromCite, setFromCite] = useState(false);
   const noteRef = useRef<HTMLDivElement>(null);
 
@@ -95,6 +98,11 @@ const Answer = memo(function Answer({
     .map((id) => getKnowledgeItem(id))
     .filter((item): item is KnowledgeItem => Boolean(item));
   const { cited, outOfRange } = countCitations(message.content, sources.length);
+  // Only the notes the answer cites get a chip; the others it read fold
+  // behind one "+N more read" disclosure, so the answer comes first.
+  const [showMore, setShowMore] = useState(false);
+  const split = splitSources(sources.length, cited);
+  const moreLabel = moreReadLabel(split.shown.length, split.more.length);
   const openItem = openId ? getKnowledgeItem(openId) : undefined;
   const openNumber = openItem ? sources.indexOf(openItem) + 1 : 0;
   const followUps =
@@ -103,85 +111,71 @@ const Answer = memo(function Answer({
       : [];
   const label = modelLabel(message.provider);
   const fromModel = message.provider?.startsWith("groq:") ?? false;
+  // A guard refusal never reached the notes or the model.
+  const declined = message.provider === "guard";
   const shareUrl =
     typeof window === "undefined" || question.length > DEEP_LINK_MAX
       ? ""
       : `${window.location.origin}/?q=${encodeURIComponent(question)}`;
 
+  const chip = (number: number) => {
+    const item = sources[number - 1];
+    if (!item) return null;
+    const isCited = cited.includes(number);
+    return (
+      <li key={item.id} className="shrink-0">
+        <button
+          type="button"
+          aria-expanded={openId === item.id}
+          aria-label={`Source ${number}: ${item.title}${isCited ? ", cited" : ""}`}
+          onClick={() => {
+            setFromCite(false);
+            setOpenId(openId === item.id ? null : item.id);
+          }}
+          className={`inline-flex min-h-9 items-center gap-1.5 whitespace-nowrap rounded-md border px-2 py-1 text-left text-[14px] leading-[1.25] ${
+            openId === item.id
+              ? "border-ink bg-wash text-ink"
+              : isCited
+                ? "border-accent text-ink"
+                : "border-control text-muted"
+          }`}
+        >
+          <span
+            className={
+              isCited
+                ? "cite !mx-0"
+                : "inline-flex h-[1.3rem] min-w-[1.3rem] items-center justify-center text-[12.5px] font-semibold"
+            }
+          >
+            {number}
+          </span>
+          {shortTitle(item)}
+        </button>
+      </li>
+    );
+  };
+
   return (
     <div className="space-y-3">
-      {/* Sources sit above the answer and never move while it streams. */}
-      <div>
-        {/* The index caption above already says how many were pulled. */}
-        <p
-          className={
-            sources.length > 0 && !message.reusedPrevious
-              ? "sr-only"
-              : "text-[14px] text-muted"
-          }
-        >
-          {sources.length > 0
-            ? `Pulled ${sources.length} of ${NOTE_COUNT} notes`
+      {/* Heard before the answer; the chips follow it. */}
+      <p
+        className={
+          sources.length > 0 && !message.reusedPrevious
+            ? "sr-only"
+            : "text-[14px] text-muted"
+        }
+      >
+        {declined
+          ? "Outside what this copilot answers, so no notes were read"
+          : sources.length > 0
+            ? `Answered from ${sources.length} of ${NOTE_COUNT} notes`
             : message.sourcesUnknown
               ? "The notes behind this answer cannot be shown on this version of the page. Reload to see them"
-              : "No note matched, so the model saw only the one-line index"}
-          {message.reusedPrevious
-            ? ", kept from your previous question because this one had no new keywords."
-            : "."}
-        </p>
-        {sources.length > 0 ? (
-          <ol className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] lg:-mx-6 lg:px-6">
-            {sources.map((item, index) => {
-              const number = index + 1;
-              const isCited = cited.includes(number);
-              return (
-                <li key={item.id} className="shrink-0">
-                  <button
-                    type="button"
-                    aria-expanded={openId === item.id}
-                    aria-label={`Source ${number}: ${item.title}${isCited ? ", cited" : ""}`}
-                    onClick={() => {
-                      setFromCite(false);
-                      setOpenId(openId === item.id ? null : item.id);
-                    }}
-                    className={`inline-flex min-h-9 items-center gap-1.5 whitespace-nowrap rounded-md border px-2 py-1 text-left text-[14px] leading-[1.25] ${
-                      openId === item.id
-                        ? "border-ink bg-wash text-ink"
-                        : isCited
-                          ? "border-accent text-ink"
-                          : "border-control text-muted"
-                    }`}
-                  >
-                    <span
-                      className={
-                        isCited
-                          ? "cite !mx-0"
-                          : "inline-flex h-[1.3rem] min-w-[1.3rem] items-center justify-center text-[12.5px] font-semibold"
-                      }
-                    >
-                      {number}
-                    </span>
-                    {shortTitle(item)}
-                  </button>
-                </li>
-              );
-            })}
-          </ol>
-        ) : null}
-        {openItem ? (
-          <div
-            ref={noteRef}
-            tabIndex={-1}
-            className="mt-2 scroll-my-4 focus:outline-none"
-          >
-            <NoteDetail
-              item={openItem}
-              number={openNumber}
-              onClose={() => setOpenId(null)}
-            />
-          </div>
-        ) : null}
-      </div>
+              : "No note matched, so it answered from a one-line summary of each note"}
+        {message.reusedPrevious && !declined
+          ? ", kept from your previous question because this one had no new keywords."
+          : "."}
+      </p>
 
       <div
         lang={langOf(message.content)}
@@ -216,13 +210,65 @@ const Answer = memo(function Answer({
           <p className="text-muted">
             {sources.length > 0
               ? `Reading ${sources.length} notes…`
-              : "Checking the index…"}
+              : "Looking through the notes…"}
           </p>
         )}
         {streaming && message.content ? (
           <span className="caret" aria-hidden="true" />
         ) : null}
       </div>
+
+      {/* Sources come after the answer, once it has finished, so nothing
+          moves under the reader while it streams. */}
+      {!streaming && sources.length > 0 ? (
+        <div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {split.shown.length > 0 ? (
+              <ol aria-label="Cited sources" className="flex flex-wrap gap-1.5">
+                {split.shown.map(chip)}
+              </ol>
+            ) : null}
+            {moreLabel ? (
+              <button
+                type="button"
+                aria-expanded={showMore}
+                aria-controls={`more-${message.id}`}
+                onClick={() => setShowMore(!showMore)}
+                className="tap inline-flex items-center gap-1 px-1 text-[14px] text-muted hover:text-ink"
+              >
+                {showMore ? (
+                  <ChevronUp size={15} aria-hidden="true" />
+                ) : (
+                  <ChevronDown size={15} aria-hidden="true" />
+                )}
+                {moreLabel}
+              </button>
+            ) : null}
+          </div>
+          {showMore && split.more.length > 0 ? (
+            <ol
+              id={`more-${message.id}`}
+              aria-label="Also read, not cited"
+              className="mt-1.5 flex flex-wrap gap-1.5"
+            >
+              {split.more.map(chip)}
+            </ol>
+          ) : null}
+        </div>
+      ) : null}
+      {openItem ? (
+        <div
+          ref={noteRef}
+          tabIndex={-1}
+          className="scroll-my-4 focus:outline-none"
+        >
+          <NoteDetail
+            item={openItem}
+            number={openNumber}
+            onClose={() => setOpenId(null)}
+          />
+        </div>
+      ) : null}
 
       {!streaming ? (
         <div className="space-y-2">
@@ -253,7 +299,9 @@ const Answer = memo(function Answer({
             </summary>
             <div className="mt-1 space-y-2 border-l-2 border-hairline pl-3">
               <p>
-                {sources.length > 0
+                {declined
+                  ? "This question was outside what this copilot answers, so it was declined with a fixed reply: no note was read and no model was called."
+                  : sources.length > 0
                   ? `The model was given ${sources.length} notes in full, chosen by keyword and tag match, plus a one-line index of all ${NOTE_COUNT}.`
                   : message.sourcesUnknown
                     ? "The server used notes this version of the page does not know, so they cannot be listed here. Reload the page to see them."
@@ -278,7 +326,7 @@ const Answer = memo(function Answer({
                   })}
                 </ol>
               ) : null}
-              {message.expansions && message.expansions.length > 0 ? (
+              {!declined && message.expansions && message.expansions.length > 0 ? (
                 <p>
                   Words expanded before matching:{" "}
                   {message.expansions
@@ -287,6 +335,7 @@ const Answer = memo(function Answer({
                   .
                 </p>
               ) : null}
+              {declined ? null : (
               <p>
                 {fromModel
                   ? `Written by ${label}.`
@@ -298,6 +347,7 @@ const Answer = memo(function Answer({
                   ? `${outOfRange} citation pointed at no note and is shown as plain text.`
                   : ""}
               </p>
+              )}
               {message.firstTextMs !== undefined ? (
                 <p>
                   First text after {seconds(message.firstTextMs)}

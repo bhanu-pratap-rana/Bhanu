@@ -1,76 +1,112 @@
 import Link from "next/link";
 import { AskButton } from "@/components/chat/AskButton";
 import { PulledMark } from "@/components/chat/PulledMark";
+import { ProjectCover, ProjectThumb } from "@/components/sections/ProjectMedia";
 import {
   getProjectDetail,
   moreWork,
   projects,
   type Project,
 } from "@/lib/knowledge";
+import { coverMedia, projectLinks, thumbMedia } from "@/lib/project-media";
 
-function ProjectLinks({ project }: Readonly<{ project: Project }>) {
+// The featured projects carry the full entry; the shorter list below them
+// keeps only what a scan needs (notes live on the detail page, and the
+// copilot's own entry points are always on screen), so it reads as a list,
+// not a wall.
+type Variant = "featured" | "compact";
+
+function ProjectLinks({
+  project,
+  variant,
+}: Readonly<{ project: Project; variant: Variant }>) {
   const prompt =
     getProjectDetail(project)?.prompt ?? `Tell me about ${project.name}.`;
 
+  // Live app -> demo -> code -> details -> ask (src/lib/project-media.ts).
   return (
     <ul className="mt-2 flex flex-wrap items-center gap-x-5 text-[16px]">
-      <li>
-        <Link
-          href={`/projects/${project.slug}`}
-          aria-label={`Details: ${project.name}`}
-          className="link tap inline-flex items-center"
-        >
-          Details
-        </Link>
-      </li>
-      {project.repoUrl ? (
+      {projectLinks(project).map((link) => (
+        <li key={link.kind}>
+          {link.external ? (
+            <a
+              href={link.href}
+              target="_blank"
+              rel="noreferrer noopener"
+              aria-label={link.ariaLabel}
+              className="link tap inline-flex items-center"
+            >
+              {link.label}
+            </a>
+          ) : (
+            <Link
+              href={link.href}
+              aria-label={link.ariaLabel}
+              className="link tap inline-flex items-center"
+            >
+              {link.label}
+            </Link>
+          )}
+        </li>
+      ))}
+      {variant === "featured" ? (
         <li>
-          <a
-            href={project.repoUrl}
-            target="_blank"
-            rel="noreferrer noopener"
-            aria-label={`Code: ${project.name}`}
-            className="link tap inline-flex items-center"
+          <AskButton
+            question={prompt}
+            label={`Ask the copilot about ${project.name}`}
           >
-            Code
-          </a>
+            <span className="link">Ask the copilot</span>
+          </AskButton>
         </li>
       ) : null}
-      {project.demoUrl ? (
-        <li>
-          <a
-            href={project.demoUrl}
-            target="_blank"
-            rel="noreferrer noopener"
-            aria-label={`${project.demoLabel ?? "Demo"}: ${project.name}`}
-            className="link tap inline-flex items-center"
-          >
-            {project.demoLabel ?? "Demo"}
-          </a>
-        </li>
-      ) : null}
-      <li>
-        <AskButton
-          question={prompt}
-          label={`Ask the copilot about ${project.name}`}
-        >
-          <span className="link">Ask the copilot</span>
-        </AskButton>
-      </li>
     </ul>
   );
 }
 
-function Body({ project }: Readonly<{ project: Project }>) {
+function Body({
+  project,
+  variant,
+}: Readonly<{ project: Project; variant: Variant }>) {
   return (
     <>
       <p>{project.summary}</p>
       <p className="mt-2 text-[15px] text-muted">{project.stack.join(", ")}</p>
-      {project.note ? (
+      {/* A card keeps a note only when it qualifies a link the card shows
+          (e.g. "the hosted link shows the interface only"); every other
+          caveat lives on the detail page. */}
+      {variant === "featured" && project.note && (project.demoUrl || project.liveUrl) ? (
         <p className="mt-2 text-[15px] text-muted">{project.note}</p>
       ) : null}
-      <ProjectLinks project={project} />
+      <ProjectLinks project={project} variant={variant} />
     </>
+  );
+}
+
+/** A featured project's 16:10 cover, only when it has media. */
+function Cover({ project }: Readonly<{ project: Project }>) {
+  const media = coverMedia(project);
+  return media ? <ProjectCover media={media} projectName={project.name} /> : null;
+}
+
+/** A listed project's row; a 64px thumbnail beside it only when it has media. */
+function CompactRow({ project }: Readonly<{ project: Project }>) {
+  const body = (
+    <>
+      <h3 className="text-[20px] font-semibold leading-[1.25]">
+        {project.name}
+        <PulledMark ids={[project.kbId]} />
+      </h3>
+      <p className="mb-2 text-[15px] text-muted">{project.attribution}</p>
+      <Body project={project} variant="compact" />
+    </>
+  );
+  const thumb = thumbMedia(project);
+  if (!thumb) return body;
+  return (
+    <div className="flex items-start gap-4">
+      <ProjectThumb media={thumb} />
+      <div className="min-w-0 flex-1">{body}</div>
+    </div>
   );
 }
 
@@ -91,9 +127,10 @@ export function Work() {
             key={project.slug}
             id={`work-${project.slug}`}
             tabIndex={-1}
-            className="scroll-mt-4 border-t border-hairline py-6 first:border-t-0 first:pt-0 md:grid md:grid-cols-[15rem_minmax(0,1fr)] md:gap-8"
+            className="scroll-mt-4 border-t border-hairline py-6 first:border-t-0 first:pt-0 md:grid md:grid-cols-[15rem_minmax(0,46rem)] md:gap-8"
           >
             <div>
+              <Cover project={project} />
               <h3 className="display text-[32px]">
                 {project.name}
                 <PulledMark ids={[project.kbId]} />
@@ -103,7 +140,7 @@ export function Work() {
               </p>
             </div>
             <div>
-              <Body project={project} />
+              <Body project={project} variant="featured" />
             </div>
           </li>
         ))}
@@ -117,12 +154,7 @@ export function Work() {
             tabIndex={-1}
             className="scroll-mt-4 border-b border-hairline py-5"
           >
-            <h3 className="text-[20px] font-semibold leading-[1.25]">
-              {project.name}
-              <PulledMark ids={[project.kbId]} />
-            </h3>
-            <p className="mb-2 text-[15px] text-muted">{project.attribution}</p>
-            <Body project={project} />
+            <CompactRow project={project} />
           </li>
         ))}
       </ul>

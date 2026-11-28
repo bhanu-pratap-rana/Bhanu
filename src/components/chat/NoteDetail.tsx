@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { X } from "lucide-react";
 import { useRef, useState } from "react";
-import { useChatStore } from "@/components/chat/ChatProvider";
+import { useChatStore, useIsDesktop } from "@/components/chat/ChatProvider";
+import { shouldCloseOnNavigate } from "@/lib/copilot-host";
 import { basisLabel, kindLabel, type KnowledgeItem } from "@/lib/knowledge";
 
 /** One note from the index, opened from a lattice cell or a source chip. */
@@ -18,6 +19,7 @@ export function NoteDetail({
   onClose: () => void;
 }>) {
   const store = useChatStore();
+  const isDesktop = useIsDesktop();
   // The control that opened this note, so closing it can hand focus back.
   const [opener] = useState(() =>
     typeof document === "undefined"
@@ -65,7 +67,11 @@ export function NoteDetail({
         </button>
         <Link
           href={`/#${item.anchor}`}
-          onClick={() => store.close()}
+          // Only the phone dialog would cover the section it scrolls to; the
+          // laptop column stays open beside it.
+          onClick={() => {
+            if (shouldCloseOnNavigate(isDesktop)) store.close();
+          }}
           className="link tap inline-flex items-center font-medium"
         >
           Go to the section

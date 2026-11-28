@@ -3,20 +3,16 @@ import { Download } from "lucide-react";
 import { HomeLink } from "@/components/site/HomeLink";
 import { ThemeToggle } from "@/components/site/ThemeToggle";
 import { profile } from "@/lib/knowledge";
-
-export const sectionLinks = [
-  { href: "/#work", label: "Work" },
-  { href: "/#experience", label: "Experience" },
-  { href: "/#skills", label: "Skills" },
-  { href: "/#publications", label: "Publications" },
-  { href: "/#contact", label: "Contact" },
-];
+import { RESUME_FILENAME, sectionLinks } from "@/lib/site";
 
 export function SiteHeader() {
   return (
-    <header className="measure flex items-center gap-2 pt-2 text-[15px] lg:pt-5">
+    <header className="frame flex items-center gap-2 pt-2 text-[15px] lg:pt-5">
       <HomeLink name={profile.name} />
-      <nav aria-label="Sections" className="max-md:hidden">
+      {/* Five links plus the name (off the home page), the resume and the
+          theme toggle need about 740px, so the bar shows them from lg; below
+          that the hero lists the sections and project pages link back. */}
+      <nav aria-label="Sections" className="max-lg:hidden">
         <ul className="flex items-center gap-5">
           {sectionLinks.map((link) => (
             <li key={link.href}>
@@ -29,10 +25,12 @@ export function SiteHeader() {
       </nav>
       <a
         href={profile.resumePath}
+        // The icon says download, so the link downloads (not an in-tab viewer).
+        download={RESUME_FILENAME}
         className="tap ml-3 inline-flex items-center gap-1.5 rounded-md border border-control px-3 font-medium text-ink hover:border-ink"
       >
         <Download size={16} aria-hidden="true" />
-        Résumé
+        Resume
       </a>
       <ThemeToggle />
     </header>

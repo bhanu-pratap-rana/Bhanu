@@ -21,11 +21,110 @@ export type SseParse = {
 // Appended when an answer stops early, so a cut-off reply never reads as a
 // finished one. Markdown, like the model's own output.
 export { CUT_OFF_SUFFIX } from "./chat-request";
-import { CUT_OFF_SUFFIX } from "./chat-request";
+import { CUT_OFF_SUFFIX, DECLINE_TEXT } from "./chat-request";
+// Shared with the renderer, which applies it again as a backstop.
+import { limitCitations, normalizeCitationBrackets } from "../components/markdown";
+export { limitCitations, normalizeCitationBrackets };
 
 export type ModelStreamResult =
   | { ok: true; stream: ReadableStream<Uint8Array> }
   | { ok: false; reason: "empty" | "error" };
+
+/** Shown in place of a code block when the route gives no wording of its own. */
+const DEFAULT_CODE_NOTICE = DECLINE_TEXT;
+
+// The longest unfinished citation worth waiting for before it is let through.
+const MAX_HELD_CITE = 40;
+const FENCE = /```|~~~/;
+// Reserved for the signature that may follow the answer (chat-guard.ts).
+const SEPARATOR = /\u001e/g;
+
+/** Where the not-yet-safe tail of `text` starts: it is held for the next chunk. */
+function holdFrom(text: string): number {
+  let cut = text.length;
+  // Half a fence ("``") and the blank before it: a fence may be completing.
+  const ticks = /[`~]{1,2}$/.exec(text);
+  if (ticks) cut = ticks.index;
+  // An unfinished 【4… or [4†…, so it can be rewritten once it closes.
+  // A citation held whole too: the next chunk says whether "(" makes it a link.
+  const lenticular = text.lastIndexOf("【");
+  if (
+    lenticular >= 0 &&
+    !text.includes("】", lenticular) &&
+    text.length - lenticular <= MAX_HELD_CITE
+  ) {
+    cut = Math.min(cut, lenticular);
+  }
+  const bracket = text.lastIndexOf("[");
+  if (
+    bracket >= 0 &&
+    text.length - bracket <= MAX_HELD_CITE &&
+    /^\[\s*\d*(?:\s*[,\-–]\s*\d*)*\s*(?:†[^\]\n]*)?\]?$/.test(text.slice(bracket))
+  ) {
+    cut = Math.min(cut, bracket);
+  }
+  // Trailing blanks wait too, so a stop at a fence can end on clean text.
+  const blanks = /\s+$/.exec(text.slice(0, cut));
+  return blanks ? blanks.index : cut;
+}
+
+export type AnswerFilterStep = { text: string; stop: boolean };
+
+/**
+ * The output guard, fed the model's text in order. An answer never carries a
+ * fenced code block: at the first ``` or ~~~ fence the answer ends and
+ * `codeNotice` follows. Only fences are stopped: inline `code` spans and
+ * indented code pass through, so the system prompt's no-code rule is what
+ * keeps those out (see groq-stream.test.ts).
+ * Citation brackets are normalised on the way and, given `maxCitation` (the
+ * number of notes sent), a citation to any other number is dropped. A tail
+ * that could be half of a fence or of a citation is held until the next chunk
+ * decides.
+ */
+export function createAnswerFilter(options: { codeNotice: string; maxCitation?: number }) {
+  const { maxCitation } = options;
+  const clean = (text: string) => {
+    const normal = normalizeCitationBrackets(text);
+    return maxCitation === undefined ? normal : limitCitations(normal, maxCitation);
+  };
+  let held = "";
+  let emitted = "";
+  let stopped = false;
+
+  function push(chunk: string, final = false): AnswerFilterStep {
+    if (stopped) return { text: "", stop: true };
+    let text = (held + chunk).replace(SEPARATOR, "");
+    held = "";
+
+    const fence = FENCE.exec(text);
+    if (fence) {
+      stopped = true;
+      const before = clean(text.slice(0, fence.index)).trimEnd();
+      const gap = (emitted + before).trim() ? "\n\n" : "";
+      const out = `${before}${gap}${options.codeNotice}`;
+      emitted += out;
+      return { text: out, stop: true };
+    }
+
+    if (!final) {
+      const cut = holdFrom(text);
+      held = text.slice(cut);
+      text = text.slice(0, cut);
+    }
+    const out = clean(text);
+    emitted += out;
+    return { text: out, stop: false };
+  }
+
+  return {
+    push: (chunk: string) => push(chunk),
+    /** Releases the held tail; call once the model has finished. */
+    flush: () => push("", true),
+    get stopped() {
+      return stopped;
+    },
+  };
+}
 
 // A single frame is a few hundred bytes. A body that never completes a frame
 // is not SSE, and must not grow the buffer without bound.
@@ -146,10 +245,26 @@ export async function openModelStream(
   options: {
     /** The visitor stopped the answer: an early end is theirs, not a cut-off. */
     isClientGone?: () => boolean;
+    /** Replaces a code block the model starts; the owner's short decline. */
+    codeNotice?: string;
+    /** How many notes the model was given: a citation beyond them is dropped. */
+    maxCitation?: number;
+    /**
+     * Called once with everything the visitor received (notices included);
+     * what it returns is sent after the answer. Not called when the visitor
+     * has gone.
+     */
+    trailer?: (answer: string) => string;
   } = {},
 ): Promise<ModelStreamResult> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
+  const filter = createAnswerFilter({
+    codeNotice: options.codeNotice ?? DEFAULT_CODE_NOTICE,
+    maxCitation: options.maxCitation,
+  });
+  // Everything enqueued so far, for the trailer.
+  let sent = "";
   let rest = "";
   let ended = false;
   let failed = false;
@@ -191,22 +306,46 @@ export async function openModelStream(
       else if (!parsed.done) cutReason = "overflow";
       void release();
     }
-    return parsed.deltas.join("");
+
+    const step = filter.push(parsed.deltas.join(""));
+    if (step.stop && !ended) {
+      // The rest of a code block is never read, let alone shown.
+      ended = true;
+      cutReason = null;
+      console.warn("groq answer began a code block; ended there");
+      void release();
+    }
+    return step.text;
+  }
+
+  function send(
+    controller: ReadableStreamDefaultController<Uint8Array>,
+    text: string,
+  ) {
+    if (!text) return;
+    sent += text;
+    controller.enqueue(encoder.encode(text));
   }
 
   // Ends the visitor's stream. A cut-off answer keeps the text that did
   // arrive but says it is incomplete, instead of passing as a full reply.
   function finish(controller: ReadableStreamDefaultController<Uint8Array>) {
-    if (cutReason && !options.isClientGone?.()) {
+    const gone = options.isClientGone?.() ?? false;
+    send(controller, filter.flush().text);
+    if (cutReason && !filter.stopped && !gone) {
       console.warn("groq stream cut off", { reason: cutReason });
-      controller.enqueue(encoder.encode(CUT_OFF_SUFFIX));
+      send(controller, CUT_OFF_SUFFIX);
     }
+    const trailer = !gone && options.trailer ? options.trailer(sent) : "";
+    if (trailer) controller.enqueue(encoder.encode(trailer));
     controller.close();
   }
 
   let peeked = "";
   while (!peeked.trim()) {
     if (ended) {
+      peeked += filter.flush().text;
+      if (peeked.trim()) break;
       await release();
       return { ok: false, reason: failed ? "error" : "empty" };
     }
@@ -216,7 +355,7 @@ export async function openModelStream(
   let cancelled = false;
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
-      controller.enqueue(encoder.encode(peeked));
+      send(controller, peeked);
       if (ended) finish(controller);
     },
     // Must not return before it has enqueued or closed: the stream only pulls
@@ -234,7 +373,7 @@ export async function openModelStream(
         const text = await readChunk();
         if (cancelled) return;
         if (text) {
-          controller.enqueue(encoder.encode(text));
+          send(controller, text);
           if (ended) finish(controller);
           return;
         }

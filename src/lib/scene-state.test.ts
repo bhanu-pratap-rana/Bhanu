@@ -75,6 +75,13 @@ describe("sectionTargets", () => {
   it("is all dark with no section", () => {
     expect(sectionTargets(null, anchors).every((x) => x === 0)).toBe(true);
   });
+
+  // The hero is the core's own stage: a lone cool cell among the demo's
+  // marigold there reads as a glitch, not as "the section you are reading".
+  it("lights nothing while the hero (#top) is the section on screen", () => {
+    expect(anchors).toContain("top");
+    expect(sectionTargets("top", anchors).every((x) => x === 0)).toBe(true);
+  });
 });
 
 describe("demoFrames", () => {

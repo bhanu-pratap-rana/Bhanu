@@ -209,6 +209,7 @@ describe("modelLabel", () => {
     expect(modelLabel("local-rag-fallback:quota")).toBe(
       "Model quota used up for now — answer from the index",
     );
+    expect(modelLabel("guard")).toBe("Declined: outside this copilot's scope");
     expect(modelLabel("something-else")).toBe("");
     expect(modelLabel(undefined)).toBe("");
   });

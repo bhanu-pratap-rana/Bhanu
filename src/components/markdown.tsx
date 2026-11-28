@@ -49,7 +49,30 @@ const SPACE = /\s/;
 
 // One level of nested parentheses is allowed inside the URL.
 const LINK_AT = /\[([^\]\n]+)\]\(((?:[^()\n]|\([^()\n]*\))*)\)/y;
-const CITE_AT = /\[\s*\d+(?:\s*,\s*\d+)*\s*\]/y;
+// One citation item: a number or a range of them ("2-4", "2–4").
+const CITE_ITEM = String.raw`\d+(?:\s*[-–]\s*\d+)?`;
+const CITE_LIST = String.raw`${CITE_ITEM}(?:\s*,\s*${CITE_ITEM})*`;
+const CITE_AT = new RegExp(String.raw`\[\s*${CITE_LIST}\s*\]`, "y");
+
+/**
+ * The numbers of a citation list ("1, 3-5") that fall in 1..`max`, distinct
+ * and in order, and how many of its numbers fall outside. A range is counted,
+ * not expanded, so "[1-99999]" costs no more than its in-range part.
+ */
+function citeNumbers(list: string, max: number): { kept: number[]; missing: number } {
+  const kept: number[] = [];
+  let missing = 0;
+  for (const item of list.split(/\s*,\s*/)) {
+    const [a, b = a] = item.split(/\s*[-–]\s*/).map(Number);
+    const lo = Math.min(a, b);
+    const hi = Math.max(a, b);
+    const from = Math.max(lo, 1);
+    const to = Math.min(hi, max);
+    missing += hi - lo + 1 - Math.max(0, to - from + 1);
+    for (let n = from; n <= to; n++) if (!kept.includes(n)) kept.push(n);
+  }
+  return { kept, missing };
+}
 
 type InlineScan = { segments: InlineSegment[]; outOfRange: number };
 
@@ -103,7 +126,83 @@ function findItalicUnderscoreClose(text: string, open: number): number {
   return -1;
 }
 
-function scanInline(text: string, maxCite: number): InlineScan {
+// Some models cite as 【4】 or [4†L10-L20]. The server rewrites those as [4]
+// while streaming (groq-stream.ts); this catches any that reach the page
+// anyway, from an older answer kept in the browser for instance.
+const LENTICULAR_CITE = /【\s*(\d+(?:\s*[,，]\s*\d+)*)\s*(?:†[^】\n]*)?】/g;
+const DAGGER_CITE = /\[\s*(\d+)\s*†[^\]\n]*\]/g;
+
+/** Rewrites 【n】, 【n†…】 and [n†…] citations as plain [n]. */
+export function normalizeCitationBrackets(text: string): string {
+  if (!text.includes("【") && !text.includes("†")) return text;
+  return text
+    .replace(LENTICULAR_CITE, (_, numbers: string) =>
+      `[${numbers.replace(/\s*[,，]\s*/g, ", ")}]`,
+    )
+    .replace(DAGGER_CITE, "[$1]");
+}
+
+// A plain [n], [n, m] or [n-m] that is not a link's text, with the blanks
+// before it and a comma that joins it to the citation before it.
+// The lookbehind anchors the blanks to the start of their run, so a long run
+// does not backtrack quadratically.
+const PLAIN_CITE = new RegExp(
+  String.raw`(?<![ \t])(,?)([ \t]*)\[\s*(${CITE_LIST})\s*\](?!\()`,
+  "g",
+);
+// An inline code span, as the renderer reads one: kept as it is.
+const CODE_SPAN = /(`+)(?!`)[^]*?(?<!`)\1(?!`)/g;
+
+/**
+ * Drops citation numbers outside 1..`max`, the notes the model was actually
+ * given; a bracket left with no number goes, with the blanks before it.
+ * Pure. Run it after normalizeCitationBrackets.
+ */
+export function limitCitations(text: string, max: number): string {
+  if (!Number.isFinite(max) || !text.includes("[")) return text;
+  const last = Math.max(0, Math.floor(max));
+  let out = "";
+  // After a citation removed from the start of a line, the blanks that
+  // followed it go too.
+  let trimLead = false;
+  const append = (piece: string) => {
+    const kept = trimLead ? piece.replace(/^[ \t]+/, "") : piece;
+    if (kept !== "") trimLead = false;
+    out += kept;
+  };
+  const limitProse = (prose: string) => {
+    let from = 0;
+    PLAIN_CITE.lastIndex = 0;
+    for (let m = PLAIN_CITE.exec(prose); m; m = PLAIN_CITE.exec(prose)) {
+      const [whole, comma, blanks, list] = m;
+      const { kept, missing } = citeNumbers(list, last);
+      append(prose.slice(from, m.index));
+      from = m.index + whole.length;
+      if (missing === 0 && kept.length > 0) {
+        out += whole;
+      } else if (kept.length > 0) {
+        out += `${comma}${blanks}[${kept.join(", ")}]`;
+      } else {
+        // The comma that joined it to a kept group before it goes with it.
+        if (comma && prose[m.index - 1] !== "]") out += comma;
+        if (out.endsWith("\n")) trimLead = true;
+      }
+    }
+    append(prose.slice(from));
+  };
+  let from = 0;
+  CODE_SPAN.lastIndex = 0;
+  for (let m = CODE_SPAN.exec(text); m; m = CODE_SPAN.exec(text)) {
+    limitProse(text.slice(from, m.index));
+    append(m[0]);
+    from = m.index + m[0].length;
+  }
+  limitProse(text.slice(from));
+  return out;
+}
+
+function scanInline(rawText: string, maxCite: number): InlineScan {
+  const text = normalizeCitationBrackets(rawText);
   const segments: InlineSegment[] = [];
   let outOfRange = 0;
   let plain = "";
@@ -159,8 +258,8 @@ function scanInline(text: string, maxCite: number): InlineScan {
       CITE_AT.lastIndex = i;
       const cite = CITE_AT.exec(text);
       if (cite) {
-        const numbers = (cite[0].match(/\d+/g) ?? []).map(Number);
-        const missing = numbers.filter((n) => n < 1 || n > maxCite).length;
+        const list = cite[0].slice(1, -1).trim();
+        const { kept: numbers, missing } = citeNumbers(list, maxCite);
         if (missing === 0) {
           flush();
           segments.push({ type: "cite", numbers });
@@ -453,15 +552,15 @@ export function countCitations(
 }
 
 // Fenced code, inline code and links are matched first and kept, so only
-// bare [n] / [n, m] markers are removed. Group 1 is a marker at the start of
+// bare [n] / [n, m] / [n-m] markers are removed. Group 1 is a marker at the start of
 // a line (removed with the space after it), group 2 any other marker (removed
 // with the space before it).
 const STRIP_PATTERN =
-  /```[\s\S]*?(?:```|(?![\s\S]))|`[^`\n]*`|\[[^\]\n]+\]\((?:[^()\n]|\([^()\n]*\))*\)|(^[ \t]*(?:\[\s*\d+(?:\s*,\s*\d+)*\s*\](?!\()[ \t]*)+)|((?<![ \t])[ \t]*\[\s*\d+(?:\s*,\s*\d+)*\s*\](?!\())/gm;
+  /```[\s\S]*?(?:```|(?![\s\S]))|`[^`\n]*`|\[[^\]\n]+\]\((?:[^()\n]|\([^()\n]*\))*\)|(^[ \t]*(?:\[\s*\d+(?:\s*[-–]\s*\d+)?(?:\s*,\s*\d+(?:\s*[-–]\s*\d+)?)*\s*\](?!\()[ \t]*)+)|((?<![ \t])[ \t]*\[\s*\d+(?:\s*[-–]\s*\d+)?(?:\s*,\s*\d+(?:\s*[-–]\s*\d+)?)*\s*\](?!\())/gm;
 
 /** Removes every [n] marker, whatever its number. Used on chat history. */
 export function stripCitations(text: string): string {
-  return text.replace(
+  return normalizeCitationBrackets(text).replace(
     STRIP_PATTERN,
     (match: string, atLineStart: string | undefined, inline: string | undefined) =>
       atLineStart !== undefined || inline !== undefined ? "" : match,

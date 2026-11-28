@@ -11,8 +11,8 @@ const page: React.CSSProperties = {
   minHeight: "100dvh",
   display: "flex",
   alignItems: "center",
-  background: "#0a1024",
-  color: "#eaeffb",
+  background: "#060a1c",
+  color: "#eef2ff",
   fontFamily: "system-ui, sans-serif",
   lineHeight: 1.5,
 };
@@ -28,8 +28,8 @@ const button: React.CSSProperties = {
   padding: "0 16px",
   border: 0,
   borderRadius: 6,
-  background: "#eaeffb",
-  color: "#0a1024",
+  background: "#eef2ff",
+  color: "#060a1c",
   font: "inherit",
   fontWeight: 600,
   cursor: "pointer",
@@ -54,7 +54,7 @@ export default function GlobalError({
           <h1 style={{ fontSize: 32, lineHeight: 1.15, margin: "0 0 12px" }}>
             The site failed to load
           </h1>
-          <p style={{ margin: "0 0 20px", color: "#b4bdd6" }}>
+          <p style={{ margin: "0 0 20px", color: "#a9b3d9" }}>
             Something broke while drawing it. Try again to load it afresh. Any
             conversation with the copilot is saved in this browser.
           </p>

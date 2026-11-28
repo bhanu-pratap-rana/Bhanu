@@ -2,7 +2,7 @@
 
 import { Moon, Sun } from "lucide-react";
 
-const COLORS = { light: "#eef1f8", dark: "#0a1024" } as const;
+const COLORS = { light: "#eef1fb", dark: "#060a1c" } as const;
 
 /**
  * Light / dark switch. Both icons are always rendered and CSS shows the one

@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { countCitations, stripCitations } from "../components/markdown";
 import {
   CUT_OFF_SUFFIX,
+  createAnswerFilter,
+  limitCitations,
+  normalizeCitationBrackets,
   openModelStream,
   parseSseDeltas,
   textStream,
@@ -542,5 +546,260 @@ describe("openModelStream", () => {
     if (!result.ok) return;
     expect(await readAll(result.stream)).toBe("done soon");
     expect(cancelled).toBe(true);
+  });
+});
+
+describe("normalizeCitationBrackets", () => {
+  it("rewrites 【n】 and [n†…] as [n]", () => {
+    expect(normalizeCitationBrackets("FastAPI【4】 and Redis【4†L10-L20】.")).toBe(
+      "FastAPI[4] and Redis[4].",
+    );
+    expect(normalizeCitationBrackets("see [3†source] and [2† L1]")).toBe("see [3] and [2]");
+    expect(normalizeCitationBrackets("both【1, 2】")).toBe("both[1, 2]");
+  });
+
+  it("leaves ordinary brackets, links and plain citations alone", () => {
+    const text = "[1] and [2, 3], a [link](https://x.example) and 【note】 and [a†b]";
+    expect(normalizeCitationBrackets(text)).toBe(text);
+  });
+});
+
+describe("the renderer's backstop", () => {
+  it("renders 【n】 and [n†…] as citations and strips them from history", () => {
+    expect(countCitations("FastAPI【1】 and Redis [2†L3].", 2).cited).toEqual([1, 2]);
+    expect(stripCitations("FastAPI【1】 and Redis [2†L3].")).toBe("FastAPI and Redis.");
+  });
+});
+
+describe("createAnswerFilter", () => {
+  const NOTICE = "I only answer questions about his work.";
+  const run = (chunks: string[]) => {
+    const filter = createAnswerFilter({ codeNotice: NOTICE });
+    let out = "";
+    let stoppedAt = -1;
+    chunks.forEach((chunk, index) => {
+      const step = filter.push(chunk);
+      out += step.text;
+      if (step.stop && stoppedAt < 0) stoppedAt = index;
+    });
+    out += filter.flush().text;
+    return { out, stoppedAt, filter };
+  };
+
+  it("passes ordinary text through unchanged", () => {
+    expect(run(["Hello ", "world [1]."]).out).toBe("Hello world [1].");
+  });
+
+  it("stops at a code fence and appends the notice instead", () => {
+    const { out, stoppedAt, filter } = run([
+      "**Python**  \n",
+      "```python\nprint('hi')\n```",
+      " more text",
+    ]);
+    expect(out).toBe(`**Python**\n\n${NOTICE}`);
+    expect(stoppedAt).toBe(1);
+    expect(filter.stopped).toBe(true);
+  });
+
+  it("catches a fence split across chunks, and a tilde fence", () => {
+    expect(run(["Here: `", "`", "`js\nx()"]).out).toBe(`Here:\n\n${NOTICE}`);
+    expect(run(["~~", "~\ncode"]).out).toBe(NOTICE);
+  });
+
+  it("keeps inline code and lone backticks", () => {
+    expect(run(["Use `uvicorn`", " and `", "x` here"]).out).toBe("Use `uvicorn` and `x` here");
+    expect(run(["ends with ``"]).out).toBe("ends with ``");
+  });
+
+  it("stops fences only: inline spans and indented code are the prompt's job", () => {
+    // Documents the limit stated on createAnswerFilter; not a guarantee.
+    const inline = "Here: `def reverse(s): return s[::-1]`";
+    expect(run([inline]).out).toBe(inline);
+    expect(run(["Steps:\n\n    def f():\n        return 1"]).filter.stopped).toBe(false);
+  });
+
+  it("normalises citation brackets split across chunks", () => {
+    expect(run(["FastAPI【", "4", "†L1", "】 done"]).out).toBe("FastAPI[4] done");
+    expect(run(["Redis [", "2†sou", "rce] ok"]).out).toBe("Redis [2] ok");
+  });
+
+  it("strips the signature separator from model text", () => {
+    expect(run(["a\u001eb"]).out).toBe("ab");
+  });
+
+  const limited = (chunks: string[], maxCitation: number) => {
+    const filter = createAnswerFilter({ codeNotice: NOTICE, maxCitation });
+    return chunks.map((chunk) => filter.push(chunk).text).join("") + filter.flush().text;
+  };
+
+  it("drops citations to notes that were never sent (red-team gr-03, api-28)", () => {
+    expect(
+      limited(["He built the Hindi Semantic Search engine", "[", "6]. Email him."], 0),
+    ).toBe("He built the Hindi Semantic Search engine. Email him.");
+    expect(limited(["Applied AI Engineer [1].  \n\nBefore that [1]."], 0)).toBe(
+      "Applied AI Engineer.  \n\nBefore that.",
+    );
+  });
+
+  it("drops out-of-range numbers split across chunks, and keeps the valid ones", () => {
+    expect(limited(["RAG [", "1, ", "7", "] and FAISS [", "2]."], 2)).toBe("RAG [1] and FAISS [2].");
+    expect(limited(["Redis【", "9】 ok"], 3)).toBe("Redis ok");
+    expect(limited(["a [2] b [3]"], 3)).toBe("a [2] b [3]");
+  });
+
+  it("drops an out-of-range citation range (red-team gr-03)", () => {
+    expect(limited(["Hindi search [6–", "7]. Email him."], 0)).toBe("Hindi search. Email him.");
+  });
+
+  it("keeps a link whose text is a number, even split before its URL", () => {
+    expect(limited(["see [7]", "(https://x.example)"], 0)).toBe("see [7](https://x.example)");
+  });
+
+  it("limits the text before a code fence too", () => {
+    expect(limited(["Listed [4].\n```py\nx"], 1)).toBe(`Listed.\n\n${NOTICE}`);
+  });
+});
+
+describe("limitCitations", () => {
+  it("removes [n] beyond the number of sources, with the blank before it", () => {
+    expect(limitCitations("engine [6].", 0)).toBe("engine.");
+    expect(limitCitations("engine[6] and [1]", 1)).toBe("engine and [1]");
+    expect(limitCitations("x [0] y", 5)).toBe("x y");
+  });
+
+  it("keeps the in-range numbers of a group, and adjacent groups", () => {
+    expect(limitCitations("RAG [1, 7, 2]", 3)).toBe("RAG [1, 2]");
+    expect(limitCitations("RAG [1][7]", 3)).toBe("RAG [1]");
+  });
+
+  it("leaves valid citations, links and other brackets alone", () => {
+    const text = "[1] and [2, 3], a [link](https://x.example), [9](https://y.example) and [a]";
+    expect(limitCitations(text, 3)).toBe(text);
+  });
+
+  it("expands ranges and keeps only the numbers in range", () => {
+    expect(limitCitations("a [6–9] b", 5)).toBe("a b");
+    expect(limitCitations("a [6-7] b", 0)).toBe("a b");
+    expect(limitCitations("a [1-3] b", 5)).toBe("a [1-3] b");
+    expect(limitCitations("a [1-3] b", 2)).toBe("a [1, 2] b");
+    expect(limitCitations("a [1, 4–9] b", 5)).toBe("a [1, 4, 5] b");
+    expect(limitCitations("a [1-3] b", 0)).toBe("a b");
+  });
+
+  it("leaves inline code alone", () => {
+    expect(limitCitations("use `arr[0]` here [9]", 5)).toBe("use `arr[0]` here");
+    expect(limitCitations("use ``a [7] b`` here", 1)).toBe("use ``a [7] b`` here");
+  });
+
+  it("leaves no dangling comma or leading blank behind", () => {
+    expect(limitCitations("x [3], [9] y", 5)).toBe("x [3] y");
+    expect(limitCitations("x [3],[9] y", 5)).toBe("x [3] y");
+    expect(limitCitations("x [8], [9] y", 5)).toBe("x y");
+    expect(limitCitations("foo, [9] bar", 5)).toBe("foo, bar");
+    expect(limitCitations("Intro\n[9] Next", 5)).toBe("Intro\nNext");
+    expect(limitCitations("Intro\n[9] [8] Next", 5)).toBe("Intro\nNext");
+    expect(limitCitations("- [9] item", 5)).toBe("- item");
+  });
+
+  it("stays linear on a long run of blanks", () => {
+    const started = performance.now();
+    expect(limitCitations(`${" ".repeat(60_000)}x [4]`, 0)).toBe(`${" ".repeat(60_000)}x`);
+    expect(performance.now() - started).toBeLessThan(100);
+  });
+});
+
+describe("openModelStream output guard", () => {
+  it("ends the answer at a code fence, appends the notice and releases the upstream", async () => {
+    const source = upstream([
+      frame("Sure:\n"),
+      frame("```py"),
+      frame("thon\nprint('hello')\n```"),
+      DONE,
+    ]);
+    const result = await openModelStream(source.body, { codeNotice: "No code here." });
+    if (!result.ok) throw new Error("expected a stream");
+    expect(await readAll(result.stream)).toBe("Sure:\n\nNo code here.");
+    expect(source.cancelled()).not.toBe(false);
+    expect(warnings.flat().join(" ")).not.toMatch(/hello/);
+  });
+
+  it("answers with the notice alone when the first text is a fence", async () => {
+    const result = await openModelStream(upstream([frame("```python\nprint(1)"), DONE]).body, {
+      codeNotice: "No code here.",
+    });
+    if (!result.ok) throw new Error("expected a stream");
+    expect(await readAll(result.stream)).toBe("No code here.");
+  });
+
+  it("normalises 【n】 citations in the stream", async () => {
+    const { result } = await open([frame("Aura AI uses FastAPI【"), frame("4】."), DONE]);
+    if (!result.ok) throw new Error("expected a stream");
+    expect(await readAll(result.stream)).toBe("Aura AI uses FastAPI[4].");
+  });
+
+  it("appends a trailer computed from everything the visitor received", async () => {
+    const seen: string[] = [];
+    const result = await openModelStream(upstream([frame("part one"), frame(" [1]"), DONE]).body, {
+      trailer: (text) => {
+        seen.push(text);
+        return "\u001eSIG";
+      },
+    });
+    if (!result.ok) throw new Error("expected a stream");
+    expect(await readAll(result.stream)).toBe("part one [1]\u001eSIG");
+    expect(seen).toEqual(["part one [1]"]);
+  });
+
+  it("signs the cut-off notice and the code notice too", async () => {
+    const seen: string[] = [];
+    const cut = await openModelStream(upstream([frame("partial")], { failAfter: true }).body, {
+      trailer: (text) => {
+        seen.push(text);
+        return "";
+      },
+    });
+    if (!cut.ok) throw new Error("expected a stream");
+    await readAll(cut.stream);
+    const fenced = await openModelStream(upstream([frame("x ```")]).body, {
+      codeNotice: "N.",
+      trailer: (text) => {
+        seen.push(text);
+        return "";
+      },
+    });
+    if (!fenced.ok) throw new Error("expected a stream");
+    await readAll(fenced.stream);
+    expect(seen).toEqual([`partial${CUT_OFF_SUFFIX}`, "x\n\nN."]);
+  });
+
+  it("adds no trailer when the visitor has gone", async () => {
+    const result = await openModelStream(upstream([frame("bye")], { failAfter: true }).body, {
+      isClientGone: () => true,
+      trailer: () => "\u001eSIG",
+    });
+    if (!result.ok) throw new Error("expected a stream");
+    expect(await readAll(result.stream)).toBe("bye");
+  });
+
+  it("drops citations beyond maxCitation, and signs the text as sent", async () => {
+    const seen: string[] = [];
+    const result = await openModelStream(
+      upstream([frame("Not listed [6]"), frame(". Closest is ATAL AI [1]."), DONE]).body,
+      {
+        maxCitation: 1,
+        trailer: (text) => {
+          seen.push(text);
+          return "";
+        },
+      },
+    );
+    if (!result.ok) throw new Error("expected a stream");
+    expect(await readAll(result.stream)).toBe("Not listed. Closest is ATAL AI [1].");
+    expect(seen).toEqual(["Not listed. Closest is ATAL AI [1]."]);
+  });
+
+  it("reports empty when the only text is a citation to nothing", async () => {
+    const result = await openModelStream(upstream([frame(" [3]"), DONE]).body, { maxCitation: 0 });
+    expect(result).toEqual({ ok: false, reason: "empty" });
   });
 });

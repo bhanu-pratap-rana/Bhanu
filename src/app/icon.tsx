@@ -14,12 +14,12 @@ export default function Icon() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#0a1024",
+          background: "#060a1c",
         }}
       >
         <svg width="30" height="26" viewBox="0 0 30 26">
-          <polygon points="29,13 22,25.1 8,25.1 1,13 8,0.9 22,0.9" fill="none" stroke="#f5a524" strokeWidth="2.6" />
-          <polygon points="21,13 18,18.2 12,18.2 9,13 12,7.8 18,7.8" fill="#f5a524" />
+          <polygon points="29,13 22,25.1 8,25.1 1,13 8,0.9 22,0.9" fill="none" stroke="#ffb21f" strokeWidth="2.6" />
+          <polygon points="21,13 18,18.2 12,18.2 9,13 12,7.8 18,7.8" fill="#ffb21f" />
         </svg>
       </div>
     ),

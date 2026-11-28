@@ -1,7 +1,7 @@
 // A regression check for the lexical retriever, not a benchmark: the same
 // person wrote the questions, the cards and the synonym list. The page shows
-// the result of evaluateRetrieval(), misses included, so nothing here may be
-// special-cased in rag.ts.
+// the pass counts of evaluateRetrieval() and the test output lists every
+// miss, so nothing here may be special-cased in rag.ts.
 
 import { knowledgeBase } from "./knowledge";
 import { retrieve } from "./rag";
@@ -104,7 +104,8 @@ const english: GoldenQuestion[] = [
 
   // Founders
   { q: "Has he worked with real users?", expect: ["assam-field-research", "atal-ai", "khs-research-assistant"], within: 3, lang: "en" },
-  { q: "Has he shipped anything to production?", expect: ["atal-ai", "aura-ai", "khs-research-assistant", "assam-field-research"], within: 3, lang: "en" },
+  // Not aura-ai: it is in development and not launched, so it is no answer here.
+  { q: "Has he shipped anything to production?", expect: ["atal-ai", "khs-research-assistant", "assam-field-research"], within: 3, lang: "en" },
   { q: "Tell me about the makeup recommendation app.", expect: ["aura-ai"], within: 1, lang: "en" },
   { q: "What makes him different from other AI engineers?", expect: ["profile-summary"], within: 3, lang: "en" },
   { q: "Can he work with Indian languages?", expect: ["profile-summary", "atal-ai", "hindi-semantic-search", "bolchaal-hindi"], within: 3, lang: "en" },

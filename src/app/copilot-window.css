@@ -1,0 +1,744 @@
+/* The floating copilot window, the launcher and the shared hex glyph.
+   Owned by the copilot stream (S1'); kept apart from globals.css. */
+
+@layer components {
+  /* The 7-cell mark. Lit cells are filled; unlit cells are only outlined.
+     Lit fills run warm like a lit prism top: the centre cell hot (pale
+     gold), the ring cells the accent. */
+  .hex-glyph-cell {
+    --glyph-heat: 15%;
+    --glyph-warm: color-mix(in oklab, var(--scene-hot) var(--glyph-heat), var(--accent));
+    fill: color-mix(
+      in oklab,
+      var(--glyph-warm) calc(var(--on, 0) * 100%),
+      transparent
+    );
+    stroke: var(--scene-edge);
+    stroke-width: 5;
+  }
+
+  .hex-glyph-cell:first-child {
+    --glyph-heat: 75%;
+  }
+
+  .hex-glyph-cell[data-on="true"] {
+    stroke: var(--accent);
+  }
+
+  @media (forced-colors: active) {
+    .hex-glyph-cell {
+      fill: transparent;
+      stroke: CanvasText;
+    }
+
+    .hex-glyph-cell[data-on="true"] {
+      fill: CanvasText;
+    }
+  }
+
+  /* ---------- Sizes shared by the launcher and the window --------------- */
+
+  :root {
+    --launcher-size: 60px;
+    --launcher-gap: 16px;
+    /* Room kept for the site header above the window at the top of the page. */
+    --copilot-header-h: 4.5rem;
+  }
+
+  /* The same query as the laptop host (src/lib/copilot-host.ts). */
+  @media (min-width: 64rem) and (hover: hover) and (pointer: fine) and (min-height: 34rem) {
+    :root {
+      --launcher-size: 72px;
+      --launcher-gap: 24px;
+    }
+  }
+
+  /* ---------- Launcher --------------------------------------------------- */
+
+  /* Hidden (but still focusable: focus brings it back) until the hero CTA
+     has left the view. The server markup has no data-shown: hidden.
+     Layers: window 40, the 3D core while docked or flying 41 (hero.css),
+     launcher 42, the core's tooltip 43. */
+  .copilot-launcher {
+    /* Geometry of the one object: the hex (rim radius 0.48 of the box,
+       CopilotLauncher RIM_R) and the capsule that grows out of it.
+       --launcher-rim-h: the rim's flat-to-flat, outer stroke edge to outer
+       stroke edge (0.96 * sin 60deg = 0.8314, + the 2px stroke): 62px at
+       72px, 52px at 60px. The capsule is that tall, so its border runs
+       straight into the hex's flat top and bottom.
+       --launcher-tuck: how far into the hex box the capsule's square right
+       end reaches: past where the flat top starts (0.26), so its corners
+       sit under the rim and the hex sits on its right end. */
+    --launcher-rim-h: calc(var(--launcher-size) * 0.8314 + 2px);
+    --launcher-tuck: calc(var(--launcher-size) * 0.3);
+    position: fixed;
+    z-index: 42;
+    right: calc(var(--launcher-gap) + env(safe-area-inset-right));
+    bottom: calc(var(--launcher-gap) + env(safe-area-inset-bottom));
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .copilot-launcher[data-shown="true"] {
+    opacity: 1;
+  }
+
+  .copilot-launcher[data-shown="true"] .launcher-button {
+    pointer-events: auto;
+  }
+
+  /* No motion while it is not on screen. */
+  .copilot-launcher:not([data-shown="true"]) * {
+    animation-play-state: paused;
+  }
+
+  .launcher-button {
+    position: relative;
+    display: block;
+    width: var(--launcher-size);
+    height: var(--launcher-size);
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+    pointer-events: none;
+  }
+
+  /* The focus indicator is a halo around the whole silhouette (capsule and
+     hex as one shape): an outline would be a square around the hex box. */
+  .launcher-button:focus-visible {
+    outline: none;
+  }
+
+  /* Everything the visitor sees, in paint order: the hex's halo, the
+     capsule (its halo, body, text), then the hex on top of the capsule's
+     right end. Pressing scales the whole object about the hex's centre. */
+  .launcher-body {
+    position: absolute;
+    inset: 0;
+    transition: transform 240ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .launcher-button:active .launcher-body {
+    transform: scale(0.95);
+    transition-duration: 90ms;
+    transition-timing-function: ease-out;
+  }
+
+  .launcher-hex {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+  }
+
+  /* Focus halo. Union of two outlines drawn as layers: the hex's halo
+     first (under the capsule), then the capsule's own halo, which stops at
+     the capsule's square right end so the two bands meet edge to edge over
+     the hex's flat top. 2px gap in the ground colour, then 3px of ink. */
+  .launcher-halo-slot {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .launcher-halo {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    visibility: hidden;
+  }
+
+  .launcher-halo polygon {
+    fill: none;
+    stroke-linejoin: miter;
+    vector-effect: non-scaling-stroke;
+  }
+
+  /* Rim stroke reaches 1px past the polygon: +2px gap = 3 (width 6), +3px
+     ink = 6 (width 12). */
+  .launcher-halo-ink {
+    stroke: var(--ink);
+    stroke-width: 12;
+  }
+
+  .launcher-halo-gap {
+    stroke: var(--ground);
+    stroke-width: 6;
+  }
+
+  .launcher-button:focus-visible .launcher-halo,
+  .launcher-button:focus-visible .launcher-chip-ink,
+  .launcher-button:focus-visible .launcher-chip-gap {
+    visibility: visible;
+  }
+
+  .launcher-frame-slot {
+    position: absolute;
+    inset: 0;
+  }
+
+  .launcher-frame {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    /* Static: never animated, so it is rasterised once. */
+    filter: drop-shadow(
+        0 10px 14px color-mix(in oklab, var(--accent) 45%, transparent)
+      )
+      drop-shadow(0 2px 3px rgb(0 0 0 / 0.35));
+  }
+
+  :root[data-theme="light"] .launcher-frame {
+    filter: drop-shadow(
+        0 10px 14px color-mix(in oklab, var(--accent) 25%, transparent)
+      )
+      drop-shadow(0 2px 3px rgb(12 20 48 / 0.12));
+  }
+
+  .launcher-rim {
+    fill: var(--surface);
+    stroke: var(--accent);
+    stroke-width: 2;
+    vector-effect: non-scaling-stroke;
+  }
+
+  /* Answer ready while closed: one pulse of the rim, then a dot that stays. */
+  .launcher-pulse {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 2;
+    vector-effect: non-scaling-stroke;
+    opacity: 0;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  .copilot-launcher[data-mode="ready"] .launcher-pulse {
+    animation: launcher-pulse 900ms cubic-bezier(0.2, 0.7, 0.2, 1) 1;
+  }
+
+  @keyframes launcher-pulse {
+    from {
+      opacity: 0.8;
+      transform: scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: scale(1.12);
+    }
+  }
+
+  .launcher-dot {
+    position: absolute;
+    top: 16%;
+    right: 12%;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 2px var(--surface);
+    opacity: 0;
+    transform: scale(0.5);
+    transition:
+      opacity 200ms ease-out,
+      transform 200ms ease-out;
+  }
+
+  .copilot-launcher[data-mode="ready"] .launcher-dot {
+    opacity: 1;
+    transform: none;
+  }
+
+  .launcher-glyph {
+    position: relative;
+    display: block;
+    width: 36px;
+    height: 36px;
+    transition:
+      transform 200ms cubic-bezier(0.2, 0.7, 0.2, 1),
+      opacity 160ms ease-out;
+  }
+
+  .launcher-glyph svg {
+    display: block;
+  }
+
+  .launcher-x {
+    position: absolute;
+    opacity: 0;
+    transform: rotate(-45deg) scale(0.6);
+    transition:
+      transform 200ms cubic-bezier(0.2, 0.7, 0.2, 1),
+      opacity 160ms ease-out;
+  }
+
+  /* Open: the mark gives way to a close glyph (visual only; the name stays). */
+  .copilot-launcher[data-mode="open"] .launcher-glyph {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+
+  .copilot-launcher[data-mode="open"] .launcher-x {
+    opacity: 1;
+    transform: none;
+  }
+
+  @media (hover: hover) {
+    .launcher-button:hover .launcher-glyph {
+      transform: translateY(-2px);
+    }
+
+    .launcher-button:hover .hex-glyph-cell[data-on="true"] {
+      fill: color-mix(
+        in oklab,
+        color-mix(in oklab, var(--accent) 85%, white) calc(var(--on, 0) * 100%),
+        transparent
+      );
+    }
+  }
+
+  /* Answering: the ring cells light in turn, a loader in the mark itself. */
+  .copilot-launcher[data-mode="busy"]:not([data-still])
+    .hex-glyph-cell:not(:first-child) {
+    animation: launcher-cell 1.2s ease-in-out var(--delay, 0s) infinite;
+  }
+
+  .launcher-glyph .hex-glyph-cell:nth-child(3) {
+    --delay: 0.2s;
+  }
+  .launcher-glyph .hex-glyph-cell:nth-child(4) {
+    --delay: 0.4s;
+  }
+  .launcher-glyph .hex-glyph-cell:nth-child(5) {
+    --delay: 0.6s;
+  }
+  .launcher-glyph .hex-glyph-cell:nth-child(6) {
+    --delay: 0.8s;
+  }
+  .launcher-glyph .hex-glyph-cell:nth-child(7) {
+    --delay: 1s;
+  }
+
+  @keyframes launcher-cell {
+    0%,
+    45%,
+    100% {
+      fill: transparent;
+      stroke: var(--scene-edge);
+    }
+    15% {
+      fill: var(--accent);
+      stroke: var(--accent);
+    }
+  }
+
+  /* The capsule: it grows out of the hex's left side, exactly as tall as
+     the rim, its square right end tucked under the hex. Inside the one
+     <button>, so it is part of the hit area. Collapsed and shown by
+     transform and opacity only; its width never animates. */
+  .launcher-chip-slot {
+    position: absolute;
+    top: 50%;
+    right: calc(100% - var(--launcher-tuck));
+    height: var(--launcher-rim-h);
+    margin-top: calc(var(--launcher-rim-h) / -2);
+    display: block;
+    transform-origin: right center;
+    /* A plain rectangle: only the rounded capsule inside it takes the
+       pointer (below). */
+    pointer-events: none;
+  }
+
+  /* A transparent container: its layers (halo ink, halo gap, body) paint
+     in DOM order under the text. */
+  .launcher-chip {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 100%;
+    /* Its own box is the capsule's hit area: rounded like the capsule, so
+       the pointer misses the corners the pill leaves out. */
+    border-radius: 999px 0 0 999px;
+    /* The text ends well clear of the hex's left point. */
+    padding-inline: 22px calc(var(--launcher-tuck) + 14px);
+    /* The longer state labels ("Ask my copilot · answer ready") never run
+       off a 320px screen: the left edge stays a gap in from the viewport's,
+       and the state suffix ellipsises (the name before it stays whole). */
+    max-width: calc(
+      100vw - 2 * var(--launcher-gap) - var(--launcher-size) + var(--launcher-tuck)
+    );
+    color: var(--ink);
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    transform-origin: right center;
+    transition:
+      opacity 220ms cubic-bezier(0.2, 0.7, 0.2, 1),
+      transform 220ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+
+  .copilot-launcher[data-shown="true"] .launcher-chip {
+    pointer-events: auto;
+  }
+
+  /* Fast scroll down: the capsule draws back into the hex. */
+  .copilot-launcher[data-chip="false"] .launcher-chip {
+    opacity: 0;
+    transform: translateX(calc(var(--launcher-tuck) * 0.8)) scaleX(0.4);
+    pointer-events: none;
+  }
+
+  .launcher-chip-ink,
+  .launcher-chip-gap,
+  .launcher-chip-body {
+    position: absolute;
+    border-radius: 999px 0 0 999px;
+    pointer-events: none;
+  }
+
+  /* No halo on the right: there the hex's halo carries on. */
+  .launcher-chip-ink {
+    inset: -5px 0 -5px -5px;
+    background: var(--ink);
+    visibility: hidden;
+  }
+
+  .launcher-chip-gap {
+    inset: -2px 0 -2px -2px;
+    background: var(--ground);
+    visibility: hidden;
+  }
+
+  /* Same surface and 2px accent border as the hex: one rim around both. */
+  .launcher-chip-body {
+    inset: 0;
+    overflow: hidden;
+    border: 2px solid var(--accent);
+    background: var(--surface);
+    box-shadow:
+      0 10px 22px -8px rgb(0 0 0 / 0.55),
+      0 2px 3px rgb(0 0 0 / 0.3);
+  }
+
+  :root[data-theme="light"] .launcher-chip-body {
+    box-shadow:
+      0 10px 22px -10px rgb(12 20 48 / 0.24),
+      0 1px 3px rgb(12 20 48 / 0.12);
+  }
+
+  /* A warm glow inside the capsule where it meets the hex, as if the mark
+     lit it. Hover lets the warmth spread (transform only). */
+  .launcher-chip-body::before {
+    content: "";
+    position: absolute;
+    top: -20%;
+    bottom: -20%;
+    right: 0;
+    width: calc(var(--launcher-rim-h) * 2.4);
+    background: radial-gradient(
+      closest-side,
+      color-mix(in oklab, var(--scene-accent) 18%, transparent),
+      transparent
+    );
+    transform: translateX(calc(50% - var(--launcher-tuck) * 0.9));
+    transform-origin: center;
+    transition: transform 240ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+
+  @media (hover: hover) {
+    .launcher-button:hover .launcher-chip-body::before {
+      transform: translateX(calc(50% - var(--launcher-tuck) * 0.9)) scale(1.35);
+    }
+  }
+
+  .launcher-chip-text {
+    position: relative;
+    min-width: 0;
+    /* Room for descenders: line-height is 1 and this box now clips. */
+    padding-block: 0.2em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Reduced motion, or motion paused on the page: the capsule only fades,
+     and the press does not scale. */
+  .copilot-launcher[data-still] .launcher-chip {
+    transition: opacity 150ms ease-out;
+  }
+
+  .copilot-launcher[data-still][data-chip="false"] .launcher-chip {
+    transform: none;
+  }
+
+  .copilot-launcher[data-still] .launcher-button:active .launcher-body {
+    transform: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .launcher-chip {
+      transition: opacity 150ms ease-out;
+    }
+
+    .copilot-launcher[data-chip="false"] .launcher-chip,
+    .launcher-button:active .launcher-body {
+      transform: none;
+    }
+
+    .launcher-body,
+    .launcher-chip-body::before {
+      transition: none;
+    }
+
+    .copilot-launcher[data-mode="ready"] .launcher-pulse {
+      animation: none;
+    }
+  }
+
+  /* Forced colours: no hexagon and no capsule shape, one bordered rect
+     with the label and the mark, label always shown. */
+  @media (forced-colors: active) {
+    .launcher-frame-slot,
+    .launcher-halo-slot,
+    .launcher-chip-ink,
+    .launcher-chip-gap,
+    .launcher-chip-body::before {
+      display: none;
+    }
+
+    .launcher-chip-slot {
+      right: 0;
+      height: var(--launcher-size);
+      margin-top: calc(var(--launcher-size) / -2);
+    }
+
+    .launcher-chip {
+      padding-inline-end: var(--launcher-size);
+      border-radius: 12px;
+      color: ButtonText;
+    }
+
+    .launcher-chip,
+    .copilot-launcher[data-chip="false"] .launcher-chip {
+      opacity: 1;
+      transform: none;
+    }
+
+    .copilot-launcher[data-shown="true"][data-chip="false"] .launcher-chip {
+      pointer-events: auto;
+    }
+
+    .launcher-chip-body {
+      border: 1px solid ButtonText;
+      border-radius: 12px;
+      background: ButtonFace;
+      box-shadow: none;
+    }
+
+    .launcher-button:focus-visible .launcher-chip-body {
+      outline: 2px solid Highlight;
+      outline-offset: 2px;
+    }
+  }
+
+  /* ---------- Window ----------------------------------------------------- */
+
+  /* Laptop only (the phone host is the modal dialog). Non-modal, floating
+     above the launcher; the page does not reflow under it. */
+  .copilot-window {
+    position: fixed;
+    z-index: 40;
+    right: var(--launcher-gap);
+    bottom: calc(var(--launcher-gap) + var(--launcher-size) + 12px);
+    display: flex;
+    flex-direction: column;
+    width: min(440px, calc(100vw - 2 * var(--launcher-gap)));
+    /* Its top never rises above the header's bottom edge. */
+    height: min(
+      760px,
+      calc(
+        100dvh - var(--launcher-gap) - var(--launcher-size) - 12px -
+          var(--copilot-header-h) - 16px
+      )
+    );
+    /* Last resort for zoom and short windows: the field stays reachable. */
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border: 1px solid var(--hairline);
+    border-radius: 16px;
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow:
+      0 24px 64px -16px rgb(0 0 0 / 0.55),
+      0 2px 8px rgb(0 0 0 / 0.3);
+    transform-origin: bottom right;
+    transition: transform 200ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+
+  :root[data-theme="light"] .copilot-window {
+    box-shadow:
+      0 24px 64px -16px rgb(12 20 48 / 0.22),
+      0 2px 8px rgb(12 20 48 / 0.1);
+  }
+
+  .copilot-window[hidden] {
+    display: none;
+  }
+
+  .copilot-window[data-state="open"] {
+    animation: copilot-window-in 240ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+
+  .copilot-window[data-state="closing"] {
+    animation: copilot-window-out 200ms cubic-bezier(0.4, 0, 1, 1) forwards;
+    pointer-events: none;
+  }
+
+  @keyframes copilot-window-in {
+    from {
+      opacity: 0;
+      transform: scale(0.94);
+    }
+  }
+
+  @keyframes copilot-window-out {
+    to {
+      opacity: 0;
+      transform: scale(0.94);
+    }
+  }
+
+  /* Page focus went under the window: it slides down to its title strip,
+     just above the launcher. */
+  .copilot-window[data-tucked="true"] {
+    transform: translateY(calc(100% - 56px));
+    clip-path: inset(0 0 calc(100% - 56px) 0 round 16px);
+    overflow: hidden;
+  }
+
+  /* While the window is open, focus the browser scrolls into view lands
+     clear of the launcher and the tucked strip above it (WCAG 2.4.11), not
+     just the launcher (globals.css keeps 6rem). Set before the window tucks,
+     so the first tuck's scroll already uses it. 56px = TUCKED_STRIP_PX. */
+  html:has(.copilot-window[data-state="open"]) {
+    scroll-padding-bottom: calc(
+      var(--launcher-gap) + var(--launcher-size) + 12px + 56px + 8px
+    );
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .copilot-window,
+    .copilot-window[data-state="open"],
+    .copilot-window[data-state="closing"] {
+      animation: none;
+      transition: none;
+    }
+  }
+
+  /* The composer is always in view: the panel fills the window exactly, the
+     footer keeps its full height, the thread keeps at least 7rem and is the
+     one scroller. The header takes the rest up to its content height; only
+     when it holds more than fits (the note list and a note open at once, or
+     a pasted job description growing the footer) does it scroll itself.
+     Heights at the dock's strip size (window = min(760px, 100dvh - 196px);
+     header 6 + 44 + 12 + dock min(120px, 15dvh) + 44 + 2; footer about
+     118px): 1440x900 window 704, header 228, thread 358; 1366x768 572, 223,
+     231; 1280x720 524, 216, 190. */
+  .copilot-window > .copilot-panel {
+    flex: 1 1 0;
+    min-height: 0;
+    /* No overflow clip: when the thread's minimum and a tall paste-mode
+       footer do not fit, the overflow reaches the window's own scroller. */
+    grid-template-rows: minmax(0, max-content) minmax(7rem, 1fr) auto;
+  }
+
+  .copilot-window .copilot-panel-head {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+  }
+
+  /* The dock: where the notes the copilot reads are drawn. The 2D lattice,
+     or (data-core="3d") the 3D core, which flies in over the window and
+     draws inside .copilot-dock-space; the window's surface stays its
+     background. */
+  .copilot-dock {
+    display: flex;
+    flex-direction: column;
+    height: min(200px, 24dvh);
+  }
+
+  .copilot-dock[data-size="strip"] {
+    height: 64px;
+  }
+
+  .copilot-dock > div {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .copilot-dock .lattice {
+    flex: 1 1 0;
+    min-height: 0;
+    max-height: none;
+  }
+
+  /* 3D: the core on the left, the caption that names what it lights on the
+     right, so the core gets the dock's whole height. The strip keeps room
+     for a core that can still be read (core-stage.ts dockPlacement and its
+     camera test use these sizes). */
+  .copilot-dock[data-core="3d"] {
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .copilot-dock[data-core="3d"][data-size="strip"] {
+    height: min(120px, 15dvh);
+  }
+
+  .copilot-dock[data-core="3d"] .copilot-dock-space {
+    flex: 1 1 0;
+    align-self: stretch;
+    min-width: 0;
+  }
+
+  .copilot-dock[data-core="3d"] > div:last-child {
+    flex: 0 0 38%;
+    justify-content: center;
+  }
+
+  .copilot-dock[data-core="3d"] .lattice {
+    display: none;
+  }
+
+  @media print {
+    .copilot-window,
+    .copilot-launcher {
+      display: none;
+    }
+  }
+}
+
+/* Unlayered, so it wins over the footer's own padding utilities: the page
+   ends far enough above the launcher that it never covers the last line. */
+#page > footer:last-child {
+  padding-bottom: max(7rem, calc(96px + env(safe-area-inset-bottom)));
+}
+
+/* Header avatar (plan add-on P1): a 32px hex photo before "Bhanu's copilot",
+   decorative (the title names him). A little room before the title. */
+@layer components {
+  .copilot-avatar {
+    margin-inline-end: 8px;
+  }
+}

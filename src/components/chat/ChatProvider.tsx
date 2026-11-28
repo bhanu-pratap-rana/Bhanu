@@ -15,6 +15,7 @@ import {
   type ChatState,
   type ChatStore,
 } from "@/lib/chat-store";
+import { DESKTOP_QUERY } from "@/lib/copilot-host";
 
 const ChatContext = createContext<ChatStore | null>(null);
 
@@ -37,9 +38,11 @@ export function ChatProvider({ children }: Readonly<{ children: ReactNode }>) {
       .slice(0, DEEP_LINK_MAX);
     if (clean) {
       store.setDraft(clean);
-      // On wide screens put the caret in the field so the visitor sees the
-      // question is waiting; on phones the dialog stays closed until asked.
-      if (window.matchMedia("(min-width: 64rem)").matches) store.requestFocus();
+      // On laptops open the window with the caret in the field, so the
+      // visitor sees the question is waiting (the host does the focusing: a
+      // freshly mounted composer ignores the request that opened it). On
+      // phones the dialog stays closed until asked.
+      if (window.matchMedia(DESKTOP_QUERY).matches) store.open({ focus: true });
     }
     window.history.replaceState(
       window.history.state,
@@ -71,15 +74,16 @@ export function useChat<T>(selector: (state: ChatState) => T): T {
   );
 }
 
-const DESKTOP_QUERY = "(min-width: 64rem)";
-
 function subscribeDesktop(onChange: () => void) {
   const query = window.matchMedia(DESKTOP_QUERY);
   query.addEventListener("change", onChange);
   return () => query.removeEventListener("change", onChange);
 }
 
-/** True when the copilot is a docked column rather than a dialog. */
+/**
+ * True when the copilot is the floating laptop window (open or closed) rather
+ * than the modal dialog: a wide, tall-enough screen with a fine pointer.
+ */
 export function useIsDesktop(): boolean {
   return useSyncExternalStore(
     subscribeDesktop,

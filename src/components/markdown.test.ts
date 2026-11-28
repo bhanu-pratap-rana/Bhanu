@@ -48,6 +48,8 @@ describe("parseInline citations", () => {
     expect(parseInline("a [1, 2] b")).toContainEqual({ type: "cite", numbers: [1, 2] });
     expect(parseInline("a [1,2,3] b")).toContainEqual({ type: "cite", numbers: [1, 2, 3] });
     expect(parseInline("a [ 2 , 4 ] b")).toContainEqual({ type: "cite", numbers: [2, 4] });
+    expect(parseInline("a [1-3] b")).toContainEqual({ type: "cite", numbers: [1, 2, 3] });
+    expect(parseInline("a [1, 3–4] b")).toContainEqual({ type: "cite", numbers: [1, 3, 4] });
   });
 
   it("emits one cite segment per adjacent bracket", () => {
@@ -79,7 +81,7 @@ describe("parseInline citations", () => {
   });
 
   it("keeps non-numeric brackets as plain text", () => {
-    for (const text of ["[a]", "[1-3]", "[1.5]", "[]", "[ ]", "[1,]", "[TODO]", "[-1]"]) {
+    for (const text of ["[a]", "[1-]", "[1.5]", "[]", "[ ]", "[1,]", "[TODO]", "[-1]"]) {
       expect(parseInline(text), text).toEqual([{ type: "text", value: text }]);
     }
   });
@@ -232,8 +234,13 @@ describe("countCitations", () => {
   });
 
   it("ignores links, inline code, fenced code and non-numeric brackets", () => {
-    const text = "[1](https://x.com) `x[2]` [note] [1-3]\n```\narr[3] = [4]\n```\nend [5]";
+    const text = "[1](https://x.com) `x[2]` [note] [1-]\n```\narr[3] = [4]\n```\nend [5]";
     expect(countCitations(text, 6)).toEqual({ cited: [5], outOfRange: 0 });
+  });
+
+  it("counts a range as its numbers", () => {
+    expect(countCitations("a [2-4] b", 6)).toEqual({ cited: [2, 3, 4], outOfRange: 0 });
+    expect(countCitations("a [6–7] b", 0)).toEqual({ cited: [], outOfRange: 2 });
   });
 
   it("counts across lists, headings and paragraphs", () => {
@@ -265,6 +272,10 @@ describe("stripCitations", () => {
   it("keeps links, code and non-numeric brackets", () => {
     const text = "[1](https://x.com) `arr[0]` [note]\n```\na[1] = [2]\n```";
     expect(stripCitations(text)).toBe(text);
+  });
+
+  it("removes citation ranges too", () => {
+    expect(stripCitations("a [1-3] b [2, 4–5]")).toBe("a b");
   });
 
   it("keeps newlines and plain text intact", () => {

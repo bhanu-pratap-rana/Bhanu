@@ -4,7 +4,7 @@ The public portfolio at [bhanu-xi.vercel.app](https://bhanu-xi.vercel.app). Ever
 
 ## What is in it
 
-- **The page**: hero, work, experience, skills, publications, background and contact, all Server Components fed from `src/lib/knowledge.ts`.
+- **The page**: hero, work, experience, skills, publications, background and how the copilot works, then a one-line contact footer (email, LinkedIn, GitHub, resume), all Server Components fed from `src/lib/knowledge.ts`.
 - **The copilot**: a docked column on wide screens and a full-height dialog on phones. Answers stream from a Groq-hosted model and cite notes by number.
 - **The index**: a lattice with one cell per note. It lights up as you type, using the same scoring function the server runs, so what you see is what the model is given.
 
@@ -45,6 +45,8 @@ npm test        # vitest
 | `GROQ_API_KEY` | Groq API key. Server-only. |
 | `GROQ_MODEL` | Optional. A model id to try first. If Groq has retired it, the route moves on to the maintained defaults in `src/lib/groq-models.ts`. |
 | `NEXT_PUBLIC_SITE_URL` | Optional. Public origin for metadata; defaults to `https://bhanu-xi.vercel.app`. |
+| `CHAT_SIGNING_KEY` | Optional. Secret for the HMAC that signs each copilot answer; the browser sends the signature back with the history, and the server drops any earlier answer whose signature does not match. If unset, a key is derived (HKDF) from `GROQ_API_KEY`, so nothing new is needed. Set it to rotate signatures without changing the Groq key. |
+| `TRUST_PROXY` | Optional, self-hosting only. Set to `1` when a reverse proxy in front of the app sets `X-Forwarded-For` and `X-Forwarded-Host`. Without it (and off Vercel, where the edge sets them), those headers are ignored: every caller shares one rate-limit bucket and only `Host` is compared with `Origin`. |
 
 Never commit a real key. `.env.local` is gitignored.
 
@@ -69,4 +71,20 @@ Never commit a real key. `.env.local` is gitignored.
 
 ## Updating content
 
-Edit `src/lib/knowledge.ts`, replace `public/bhanu-pratap-rana-resume.pdf` if the résumé changed, and bump the date in `src/lib/site.ts`. Do not add a phone number or private email to `knowledge.ts`: that file ships to the browser.
+Edit `src/lib/knowledge.ts`, replace `public/bhanu-pratap-rana-resume.pdf` if the resume changed, and bump the date in `src/lib/site.ts`. Do not add a phone number or private email to `knowledge.ts`: that file ships to the browser.
+
+Say each thing once. An Experience bullet that describes a project in Work gets `project: "<slug>"`: the role then links to that project ("Projects: …") and the bullet is not repeated under "What I did". Bullets without `project` (role facts that belong to no project) stay under the role. Write "Resume", not the accented spelling; a test fails on it anywhere in `src/`.
+
+## Adding a project demo
+
+Projects render without media; add it when a demo exists. In the project's entry in `src/lib/knowledge.ts`:
+
+- `liveUrl` (and optionally `liveLabel`, default "Live app"): a working deployment, https only. It becomes the first link everywhere (Live app → Demo → Code → Details → Ask) and the first link of the project's copilot note.
+- `media`: a list; the first item is the cover (a 16:10 cover for featured projects on the home page, a 64px thumbnail for the others; the project page shows them all with captions).
+  - `{ kind: "image", src, alt, width, height, caption? }`
+  - `{ kind: "video", src, poster, alt, width, height, caption? }` — self-hosted, plays muted inline only after a click.
+  - `{ kind: "embed", provider: "youtube" | "loom", id, title, poster, width, height }` — a click-to-load facade; the iframe (youtube-nocookie.com or loom.com) loads only after the click.
+
+Files go in `public/projects/<slug>/` and are referenced as `/projects/<slug>/<file>`; posters are local too, so nothing third-party loads before a click. Sizes: cover and posters 1600×1000 WebP, ≤ 250 KB each; mp4 H.264, ≤ 8 MB (prefer an embed for anything longer than a short clip).
+
+`npm test` checks every item (alt or title, positive width and height, a poster for videos and embeds, files present in the project's folder, embed ids matching `[A-Za-z0-9_-]+`, https links). The Content-Security-Policy is derived from the media (`src/lib/csp.ts`): `media-src 'self'` always, and `frame-src` only for the embed providers in use, so adding the first YouTube or Loom embed opens exactly that origin.

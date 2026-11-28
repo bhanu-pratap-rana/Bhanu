@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "./hero.css";
+@import "./copilot-window.css";
 
 /* Colour is by role. `accent` has one meaning on this site: the copilot
    touched this (a note it would pull, pulled, or cited). Links and ordinary
@@ -14,9 +16,16 @@
   --color-hairline: var(--hairline);
   --color-control: var(--control);
   --color-danger: var(--danger);
+  /* Body and UI: Schibsted Grotesk (Latin), with Hind for any Hindi inside
+     it. Display: Eczar, which carries both scripts itself; Hind is behind
+     it only for a glyph Eczar lacks. Fonts from layout.tsx (next/font).
+     The layout loads Eczar's Latin file only; the hero's Hindi name adds
+     the Devanagari one on its own element (hero.css .lockup-deva), so
+     elsewhere Hindi in display text is set in Hind. */
   --font-sans:
-    var(--font-anek-latin), var(--font-anek-deva), ui-sans-serif, system-ui,
+    var(--font-schibsted), var(--font-hind), ui-sans-serif, system-ui,
     sans-serif;
+  --font-display: var(--font-eczar), var(--font-hind), ui-serif, Georgia, serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 
@@ -25,49 +34,58 @@
      the visitor makes with the toggle, and is remembered. */
   :root {
     color-scheme: dark;
-    --ground: #0a1024;
-    --surface: #111a33;
-    --ink: #eaeffb;
-    --muted: #a3aec8;
+    --ground: #060a1c;
+    --surface: #0e1534;
+    --ink: #eef2ff;
+    --muted: #a9b3d9;
     /* Marigold: the copilot touched this. */
-    --accent: #f5a524;
+    --accent: #ffb21f;
     --on-accent: #1a1203;
-    --hairline: #233056;
-    --control: #5f6c90;
+    --hairline: #1f2a5c;
+    --control: #6271a8;
     --danger: #ff8a70;
     --wash: color-mix(in oklab, var(--accent) 10%, var(--surface));
-    --scene-body: #0f1838;
-    --scene-edge: #4d5f98;
-    --scene-mist: #bcd2ff;
+    --scene-body: #111a4a;
+    /* Electric indigo edges, cyan for hover and section. */
+    --scene-edge: #5b6cff;
+    --scene-mist: #7fe6ff;
     --scene-add: 1;
-    --scene-accent: #f5a524;
+    /* A lit prism top: pale-gold centre -> marigold -> saffron rim; shafts
+       rise from the rim. The rim is orange enough to stay orange once mixed
+       (src/lib/core-shading.ts holds the maths and its tests). */
+    --scene-accent: #ffa51f;
+    --scene-hot: #ffd45e;
+    --scene-rim: #ff8a1f;
+    /* A cool aurora, at low strength, so the marigold pops. */
     --backdrop:
-      radial-gradient(70vw 60vh at 72% 14%, #1b2b63 0%, transparent 68%),
-      radial-gradient(60vw 50vh at 0% 100%, #121b40 0%, transparent 70%);
-    --copilot-w: 0px;
+      radial-gradient(70vw 60vh at 72% 18%, color-mix(in srgb, #2b2fa8 55%, transparent) 0%, transparent 66%),
+      radial-gradient(55vw 45vh at 8% 92%, color-mix(in srgb, #0b5a73 55%, transparent) 0%, transparent 70%),
+      radial-gradient(40vw 35vh at 95% 85%, color-mix(in srgb, #4a1d73 45%, transparent) 0%, transparent 72%);
   }
 
   :root[data-theme="light"] {
     color-scheme: light;
-    --ground: #eef1f8;
-    --surface: #fbfcff;
-    --ink: #0c1430;
-    --muted: #48526c;
+    --ground: #eef1fb;
+    --surface: #ffffff;
+    --ink: #0b1233;
+    --muted: #464f70;
     --accent: #a15c00;
     --on-accent: #ffffff;
     --hairline: #d4dae8;
     --control: #7a85a0;
     --danger: #a8321c;
     --wash: color-mix(in oklab, var(--accent) 8%, var(--surface));
-    --scene-body: #dfe5f3;
-    --scene-edge: #6a7aa8;
-    --scene-mist: #1f3f94;
+    --scene-body: #dfe4fb;
+    --scene-edge: #4b5bd6;
+    --scene-mist: #0a7ea4;
     --scene-add: 0;
     /* Text accent stays dark for contrast; the light in the core is brighter. */
-    --scene-accent: #e8900c;
+    --scene-accent: #ff9a1a;
+    --scene-hot: #ffcf5c;
+    --scene-rim: #e8730c;
     --backdrop:
-      radial-gradient(70vw 60vh at 72% 14%, #d6e0fa 0%, transparent 68%),
-      radial-gradient(60vw 50vh at 0% 100%, #e2e7f4 0%, transparent 70%);
+      radial-gradient(70vw 60vh at 72% 18%, #d9dcff 0%, transparent 66%),
+      radial-gradient(55vw 45vh at 8% 92%, #d3eef6 0%, transparent 70%);
   }
 
   html {
@@ -88,7 +106,15 @@
     text-rendering: optimizeLegibility;
   }
 
-  /* The night sky behind everything, under the 3D core. */
+  /* The night sky behind everything, under the 3D core. Body is isolated
+     so this layer sits above its opaque background, not under it. */
+  body {
+    isolation: isolate;
+  }
+
+  /* Full strength behind the hero; it settles to 60% over the first
+     viewport of scroll. Scroll-linked in CSS (no listener); where scroll
+     timelines are unsupported it simply stays at full strength. */
   body::before {
     content: "";
     position: fixed;
@@ -96,6 +122,24 @@
     z-index: -1;
     background: var(--backdrop);
     pointer-events: none;
+  }
+
+  @supports (animation-timeline: scroll()) {
+    body::before {
+      /* Longhands: the shorthand cannot carry the timeline, and a minifier
+         that folds them into one breaks it. */
+      animation-name: backdrop-settle;
+      animation-timing-function: linear;
+      animation-fill-mode: both;
+      animation-timeline: scroll(root block);
+      animation-range: 0 100vh;
+    }
+  }
+
+  @keyframes backdrop-settle {
+    to {
+      opacity: 0.6;
+    }
   }
 
   /* Devanagari needs more leading than Latin, and is never tracked or
@@ -165,10 +209,12 @@
   min-width: 44px;
 }
 
-/* Condensed display cut of the text face. */
+/* Display face for titles (card and page h1/h3). Eczar darkens fast: 570
+   keeps a two-line card title from clotting; tracking stays at -0.01em or
+   looser, tighter and its serifs touch. */
 @utility display {
-  font-stretch: 80%;
-  font-weight: 750;
+  font-family: var(--font-display);
+  font-weight: 570;
   line-height: 1.05;
   letter-spacing: -0.01em;
 }
@@ -179,27 +225,22 @@
   .shell {
     position: relative;
     z-index: 1;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
     min-height: 100dvh;
-  }
-
-  @media (min-width: 64rem) {
-    .shell {
-      grid-template-columns: minmax(0, 1fr) 360px;
-    }
-  }
-
-  @media (min-width: 80rem) {
-    .shell {
-      grid-template-columns: minmax(0, 1fr) 420px;
-    }
   }
 
   .page {
     min-width: 0;
+    /* The hero lays itself out by this box's width (hero.css). */
+    container: page / inline-size;
     padding-inline: max(1rem, env(safe-area-inset-left))
       max(1rem, env(safe-area-inset-right));
+    /* The frame's left edge inside the page box, shared by the header, the
+       hero copy and every section (laptops, container >= 56rem). The cqi
+       units resolve where it is used, against this container. Mirrored in
+       src/lib/core-stage.ts (heroInset). */
+    --frame-inset: calc(
+      max(0px, (100cqi - 84rem) / 2) + clamp(1.5rem, 5cqi, 5rem)
+    );
   }
 
   @media (min-width: 40rem) and (max-width: 63.99rem) {
@@ -208,10 +249,34 @@
     }
   }
 
-  .measure {
+  /* .measure is the reading column; .frame (the header) spans the frame. */
+  .measure,
+  .frame {
     width: 100%;
     max-width: 46rem;
     margin-inline: auto;
+  }
+
+  /* Laptops: one left edge for the header, the hero copy, the section titles
+     and what is under them. The frame is 84rem wide; the header fills it, and
+     the reading column is left-aligned in it, 64rem at most, with prose kept
+     to 46rem. */
+  @container page (min-width: 56rem) {
+    .frame,
+    .measure {
+      width: auto;
+      max-width: none;
+      margin-inline: var(--frame-inset);
+    }
+
+    .measure {
+      max-width: 64rem;
+      margin-right: auto;
+    }
+
+    .measure p {
+      max-width: 46rem;
+    }
   }
 
   .section {
@@ -227,8 +292,8 @@
 
   .section-title {
     font-size: clamp(32px, 6vw, 46px);
-    font-stretch: 78%;
-    font-weight: 750;
+    font-family: var(--font-display);
+    font-weight: 590;
     line-height: 1;
     letter-spacing: -0.01em;
     margin-bottom: 1.75rem;
@@ -255,207 +320,6 @@
     to {
       background: transparent;
       box-shadow: 0 0 0 0.75rem transparent;
-    }
-  }
-
-  /* ---------- Hero ------------------------------------------------------ */
-
-  /* The 3D core is drawn on a fixed canvas behind the page. The hero leaves
-     it a stage: a band above the name on phones, the upper right on laptops. */
-  .hero {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .hero-stage {
-    height: clamp(170px, 28svh, 320px);
-  }
-
-  /* No core will draw (forced colours, no WebGL 2, the renderer failed to
-     load): an empty band above the name would read as a broken page. */
-  :root[data-core="off"] .hero-stage {
-    display: none;
-  }
-
-  @media (forced-colors: active) {
-    .hero-stage {
-      display: none;
-    }
-  }
-
-  /* Short phones (iPhone SE): a smaller stage keeps the ask field above the fold. */
-  @media (max-width: 63.99rem) and (max-height: 720px) {
-    .hero-stage {
-      height: clamp(120px, 20svh, 170px);
-    }
-  }
-
-  .hero-copy {
-    position: relative;
-    container-type: inline-size;
-    /* Keeps type legible where it crosses the core. */
-    text-shadow: 0 1px 18px var(--ground), 0 0 2px var(--ground);
-  }
-
-  @media (min-width: 64rem) {
-    .hero {
-      min-height: calc(100svh - 4.75rem);
-      justify-content: flex-end;
-      padding-bottom: 2.5rem;
-    }
-
-    .hero-stage {
-      position: absolute;
-      top: 0;
-      right: 0;
-      width: 56%;
-      height: 56%;
-    }
-  }
-
-  /* Short laptop screens: drop the status line so the core has room above the name. */
-  @media (min-width: 64rem) and (max-height: 820px) {
-    .hero-status {
-      display: none;
-    }
-  }
-
-  /* Two scripts, one size: the Latin name and its Devanagari twin. The size
-     follows the column so the Latin line fills the measure without wrapping. */
-  .lockup {
-    font-size: min(88px, 11.4cqi);
-  }
-
-  .lockup-latin {
-    font-stretch: 76%;
-    font-weight: 780;
-    line-height: 0.92;
-    letter-spacing: -0.015em;
-    white-space: nowrap;
-  }
-
-  .lockup-deva {
-    font-family: var(--font-anek-deva), var(--font-anek-latin), sans-serif;
-    font-stretch: 85%;
-    font-weight: 650;
-    font-size: 0.9em;
-    line-height: 1.25;
-    white-space: nowrap;
-    color: color-mix(in oklab, var(--ink) 58%, var(--ground));
-  }
-
-  .hero-statement {
-    margin-top: 1rem;
-    max-width: 40rem;
-    font-size: 19px;
-    font-weight: 500;
-    line-height: 1.32;
-    text-wrap: pretty;
-  }
-
-  @media (min-width: 48rem) {
-    .hero-statement {
-      font-size: 23px;
-    }
-  }
-
-  @media (min-width: 64rem) {
-    .hero-statement {
-      margin-top: 1.5rem;
-      font-size: 25px;
-      line-height: 1.28;
-    }
-  }
-
-  /* The live readout: what the core is lighting, and why. */
-  .hero-live {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.5rem;
-    margin-top: 0.75rem;
-  }
-
-  /* A fixed height, so the demo changing question never moves what is
-     below it (the ask field sits right under this on phones). */
-  .hero-live-line {
-    --lines: 3;
-    display: flex;
-    flex: 1;
-    min-width: 0;
-    gap: 0.6rem;
-    align-items: baseline;
-    height: calc(var(--lines) * 1.4em);
-    overflow: hidden;
-    font-size: 15px;
-    line-height: 1.4;
-  }
-
-  /* Narrow phones: the longest starter plus its count needs a fourth line. */
-  @media (max-width: 40rem) {
-    .hero-live-line {
-      --lines: 4;
-    }
-  }
-
-  .hero-live-line :lang(hi) {
-    line-height: inherit;
-  }
-
-  .hero-live-text {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: var(--lines);
-    line-clamp: var(--lines);
-    overflow: hidden;
-  }
-
-  @media (min-width: 64rem) {
-    .hero-live-line {
-      --lines: 2;
-      font-size: 16px;
-    }
-  }
-
-  .hero-live-mark {
-    flex: none;
-    width: 0.8em;
-    height: 0.8em;
-    translate: 0 0.08em;
-    clip-path: polygon(25% 6%, 75% 6%, 100% 50%, 75% 94%, 25% 94%, 0 50%);
-    background: var(--control);
-  }
-
-  .hero-live-mark[data-lit="true"] {
-    background: var(--accent);
-    animation: live-pulse 2.4s ease-in-out infinite;
-  }
-
-  .hero-live-mark[data-still="true"] {
-    animation: none;
-  }
-
-  @media (forced-colors: active) {
-    .hero-live-mark {
-      background: CanvasText;
-      forced-color-adjust: none;
-    }
-  }
-
-  .hero-live-text {
-    animation: live-in 0.45s ease-out;
-  }
-
-  @keyframes live-pulse {
-    50% {
-      opacity: 0.45;
-    }
-  }
-
-  @keyframes live-in {
-    from {
-      opacity: 0;
-      translate: 0 0.3em;
     }
   }
 
@@ -515,26 +379,6 @@
   }
 
   /* ---------- Copilot --------------------------------------------------- */
-
-  .copilot-aside {
-    display: none;
-  }
-
-  @media (min-width: 64rem) {
-    .copilot-aside {
-      display: flex;
-      position: sticky;
-      top: 0;
-      height: 100dvh;
-      /* In a short window the panel keeps its minimum height and the column
-         scrolls, so the field is always reachable. */
-      overflow-y: auto;
-      border-left: 1px solid var(--hairline);
-      /* Nearly opaque: a live blur over an animating canvas costs a frame's
-         worth of GPU time for almost no visible difference. */
-      background: color-mix(in oklab, var(--surface) 92%, transparent);
-    }
-  }
 
   dialog.copilot-dialog {
     position: fixed;
@@ -661,15 +505,17 @@
     cursor: pointer;
   }
 
-  /* Three steps, not a ramp: a faint match must still be visible outdoors. */
+  /* Three steps, not a ramp: dim marigold (accent over the surface) so a
+     partial match reads as a lesser cited cell, not a khaki mid-tone; the
+     accent stroke keeps a faint match visible outdoors. */
   .cell[data-level="1"] {
-    fill: color-mix(in oklab, var(--accent) 30%, var(--surface));
+    fill: color-mix(in oklab, var(--accent) 18%, var(--surface));
   }
   .cell[data-level="2"] {
-    fill: color-mix(in oklab, var(--accent) 55%, var(--surface));
+    fill: color-mix(in oklab, var(--accent) 30%, var(--surface));
   }
   .cell[data-level="3"] {
-    fill: color-mix(in oklab, var(--accent) 80%, var(--surface));
+    fill: color-mix(in oklab, var(--accent) 45%, var(--surface));
   }
 
   .cell[data-level="1"],
@@ -740,7 +586,8 @@
     font-weight: 600;
     line-height: 1;
     vertical-align: 0.1em;
-    font-stretch: 100%;
+    /* Always the UI face, even inside a display title. */
+    font-family: var(--font-sans);
     letter-spacing: 0;
   }
 

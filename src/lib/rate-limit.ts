@@ -67,25 +67,52 @@ export function rateLimit(
   };
 }
 
+type ProxyEnv = Record<string, string | undefined>;
+
+function readEnv(): ProxyEnv {
+  return typeof process === "undefined" ? {} : process.env;
+}
+
+/** Running on Vercel. Its edge overwrites the forwarding headers. */
+export function onVercel(env: ProxyEnv = readEnv()): boolean {
+  return Boolean(env.VERCEL);
+}
+
+/**
+ * Whether X-Forwarded-For / X-Forwarded-Host were set by a proxy in front of
+ * this server rather than by the caller: on Vercel, or when the operator says
+ * so with TRUST_PROXY=1 (a reverse proxy that overwrites or appends them).
+ */
+export function trustsProxy(env: ProxyEnv = readEnv()): boolean {
+  return onVercel(env) || env.TRUST_PROXY === "1";
+}
+
+/** Every caller shares this bucket when no proxy header can be trusted. */
+export const DIRECT_CLIENT_KEY = "direct";
+
 export function clientKey(
   request: Request,
-  options: { onVercel?: boolean } = {},
+  options: { onVercel?: boolean; trustProxy?: boolean } = {},
 ): string {
-  const onVercel = options.onVercel ?? process.env.VERCEL === "1";
+  const vercel = options.onVercel ?? onVercel();
+  const trusted = options.trustProxy ?? (vercel || trustsProxy());
   const first = (value: string | null) =>
     value?.split(",")[0]?.trim() || undefined;
   const last = (value: string | null) =>
     value?.split(",").at(-1)?.trim() || undefined;
 
   // On Vercel the edge overwrites both headers with the real client IP.
-  if (onVercel) {
+  if (vercel) {
     return (
       first(request.headers.get("x-vercel-forwarded-for")) ??
       first(request.headers.get("x-forwarded-for")) ??
       "anonymous"
     );
   }
-  // Anywhere else these headers are caller-supplied. The rightmost hop is the
-  // one the nearest proxy appended, so it is the only part worth trusting.
+  // With no trusted proxy the header is whatever the caller typed, and a fresh
+  // value per request would be a fresh bucket per request: everyone shares one.
+  if (!trusted) return DIRECT_CLIENT_KEY;
+  // Behind a trusted proxy the rightmost hop is the one it appended, so it is
+  // the only part worth trusting.
   return last(request.headers.get("x-forwarded-for")) ?? "anonymous";
 }

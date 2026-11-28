@@ -116,6 +116,16 @@ describe("evaluateRetrieval", () => {
     expect(result.hits / result.total).toBeGreaterThanOrEqual(0.9);
   });
 
+  // The questions a recruiter asks first; the page once listed both as misses.
+  it.each([
+    ["Has he trained neural networks?", ["eye-disease-classification", "skills-ml-vision-speech"]],
+    ["Has he shipped anything to production?", ["atal-ai", "khs-research-assistant", "assam-field-research"]],
+  ])("finds the right note for %s", (question, ids) => {
+    const top = retrieve({ userMessages: [question] }).ranked.slice(0, 3).map(({ item }) => item.id);
+    expect(top.some((id) => ids.includes(id)), `${question} → ${top.join(", ")}`).toBe(true);
+    expect(result.misses.map((miss) => miss.q)).not.toContain(question);
+  });
+
   it("holds the Hindi and Hinglish floors", () => {
     const { hi, hinglish } = result.byLang;
     expect(hi.hits / hi.total).toBeGreaterThanOrEqual(5 / 6);

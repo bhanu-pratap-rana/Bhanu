@@ -82,3 +82,16 @@ describe("deriveIndexView", () => {
     expect(view.ids).toEqual([]);
   });
 });
+
+describe("deriveIndexView, a guard refusal", () => {
+  it("marks the view declined with no notes pulled", () => {
+    const view = deriveIndexView({
+      draft: "",
+      preview: null,
+      questions: [],
+      answer: { content: "I can only answer questions about him.", sources: [], declined: true },
+      restQuestion: starterQuestions[0].question,
+    });
+    expect(view).toMatchObject({ phase: "pulled", ids: [], declined: true, citedCount: 0 });
+  });
+});

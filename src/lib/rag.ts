@@ -621,7 +621,7 @@ export function localAnswer(query: string, mode: ChatMode, sources: KnowledgeIte
   void query;
   void mode;
   if (sources.length === 0) {
-    return `The model is unavailable right now and no note matches that question. Email ${profile.email} or read the résumé.`;
+    return `The model is unavailable right now and no note matches that question. Email ${profile.email} or read the resume.`;
   }
 
   const notes = sources.slice(0, LOCAL_ANSWER_CARDS).map((item) => {

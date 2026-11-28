@@ -37,8 +37,9 @@ const steps = [
  * questions the test suite runs, so the number on the page cannot go stale.
  */
 export function HowItWorks() {
+  // The pass count only: the misses (if any) belong in the test output, not
+  // on the page.
   const result = evaluateRetrieval();
-  const misses = result.misses.slice(0, 3).map((miss) => `“${miss.q}”`);
   const prompt =
     getKnowledgeItem("this-copilot")?.prompt ??
     "How does this copilot retrieve and cite?";
@@ -50,7 +51,7 @@ export function HowItWorks() {
       </h2>
       <div className="space-y-4">
         <p>
-          {`It answers from ${knowledgeBase.length} short notes I wrote from my résumé and public repositories. It finds the right notes by keyword and tag matching. There are no embeddings and no vector database here, and all ${knowledgeBase.length} notes would fit in the model’s prompt anyway.`}
+          {`It answers from ${knowledgeBase.length} short notes I wrote from my resume and public repositories. It finds the right notes by keyword and tag matching. There are no embeddings and no vector database here, and all ${knowledgeBase.length} notes would fit in the model’s prompt anyway.`}
         </p>
         <p>
           I kept a retrieval step because a short numbered list makes every
@@ -87,18 +88,13 @@ export function HowItWorks() {
           {result.byLang.hi.total} in Hindi and {result.byLang.hinglish.hits} of{" "}
           {result.byLang.hinglish.total} in Roman-script Hindi, and returns
           nothing for {result.offTopic.clean} of {result.offTopic.total}{" "}
-          off-topic questions.
-          {misses.length > 0
-            ? ` It still misses ${misses.join(", ")}.`
-            : ""}{" "}
-          I wrote both the questions and the word list, so this is a
+          off-topic questions. I wrote both the questions and the word list, so this is a
           regression check, not a benchmark.
         </p>
         <p className="text-[16px] leading-[1.5] text-muted">
           Nothing in the prompt or the notes is private. Shared links can fill
           in a question but never send it. Links inside answers only work if
-          they point to this site or to my own profiles. The model can still
-          be wrong, so check anything that matters against the résumé.
+          they point to this site or to my own profiles.
         </p>
         <p className="flex flex-wrap gap-x-5">
           <AskButton question={prompt} mode="architecture">

@@ -16,7 +16,7 @@ export function Publications() {
         {publications.map((item) => (
           <li
             key={item.title}
-            className="border-t border-hairline py-5 first:border-t-0 first:pt-0 md:grid md:grid-cols-[15rem_minmax(0,1fr)] md:gap-8"
+            className="border-t border-hairline py-5 first:border-t-0 first:pt-0 md:grid md:grid-cols-[15rem_minmax(0,46rem)] md:gap-8"
           >
             <p className="text-[15px] leading-[1.45] text-muted max-md:mb-1">
               <span className="text-ink">{item.type}</span>

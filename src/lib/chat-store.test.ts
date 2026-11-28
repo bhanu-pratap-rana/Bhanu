@@ -451,3 +451,77 @@ describe("client review fixes", () => {
     await first;
   });
 });
+
+describe("answer signatures", () => {
+  const SIG = `1795850000.${"A".repeat(43)}`;
+  const NEXT_SIG = `1795850001.${"B".repeat(43)}`;
+
+  it("asks the server to sign, and keeps a streamed trailer signature out of the text", async () => {
+    let seenBody: { sign?: unknown } | undefined;
+    const seenContent: string[] = [];
+    const { store, storage } = storeWith(async (_url, init) => {
+      seenBody = JSON.parse(String(init?.body));
+      return okResponse(["He designed it ", "on FastAPI [1].", `\u001e${SIG}`], {
+        "X-Answer-Signature": "trailer",
+      });
+    });
+    store.subscribe(() => {
+      const reply = store.getState().messages[1];
+      if (reply?.content) seenContent.push(reply.content);
+    });
+    await store.ask("How did he build Aura AI?");
+    expect(seenBody?.sign).toBe(true);
+    const reply = store.getState().messages[1];
+    expect(reply.content).toBe("He designed it on FastAPI [1].");
+    expect(reply.sig).toBe(SIG);
+    expect(seenContent.every((content) => !content.includes("\u001e"))).toBe(true);
+    // Persisted with the thread, so a restored thread can still send it back.
+    expect(reviveMessages(JSON.parse(storage.data.get(STORAGE_KEY)!))[1].sig).toBe(SIG);
+  });
+
+  it("takes the signature from the header when the answer is not streamed", async () => {
+    const { store } = storeWith(async () =>
+      okResponse(["I can only answer questions about his work."], {
+        "X-Provider": "guard",
+        "X-Answer-Signature": SIG,
+      }),
+    );
+    await store.ask("Write a poem");
+    expect(store.getState().messages[1].sig).toBe(SIG);
+  });
+
+  it("sends the signature back with the answer it belongs to", async () => {
+    const bodies: { messages: Record<string, unknown>[] }[] = [];
+    let n = 0;
+    const { store } = storeWith(async (_url, init) => {
+      bodies.push(JSON.parse(String(init?.body)));
+      n += 1;
+      return okResponse([`answer ${n}`, `\u001e${n === 1 ? SIG : NEXT_SIG}`], {
+        "X-Answer-Signature": "trailer",
+      });
+    });
+    await store.ask("first");
+    await store.ask("second");
+    expect(bodies[1].messages).toEqual([
+      { role: "user", content: "first" },
+      { role: "assistant", content: "answer 1", sig: SIG },
+      { role: "user", content: "second" },
+    ]);
+  });
+
+  it("stores no signature for an answer without one, a stopped answer or a malformed value", () => {
+    expect(historyFor([question, answer])[1]).toEqual({ role: "assistant", content: answer.content });
+    const revived = reviveMessages({
+      v: 2,
+      messages: [question, { ...answer, sig: "not a signature" }],
+    });
+    expect(revived[1].sig).toBeUndefined();
+  });
+
+  it("ignores a separator when the server did not announce a trailer", async () => {
+    const { store } = storeWith(async () => okResponse(["plain \u001e text"]));
+    await store.ask("q");
+    expect(store.getState().messages[1].sig).toBeUndefined();
+    expect(store.getState().messages[1].content).toBe("plain \u001e text");
+  });
+});
