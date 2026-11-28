@@ -1,0 +1,732 @@
+/* Hero and 3D-core stage styles. Owned by the hero stream (S2a/S2b); kept
+   apart from globals.css so streams editing the copilot window do not race.
+
+   Layout follows the page container (`.page` is `container: page /
+   inline-size`). Below 56rem the hero stacks: the core's band, the name, the
+   statement, the call to action, the live starter. From 56rem it splits: a
+   copy column on the left, and the whole hero box is the core's stage. The
+   numbers for the split (inset, column width, lockup size) are mirrored in
+   src/lib/core-stage.ts, which places the core and tests the overlap rules;
+   change both together. */
+
+@layer components {
+  /* ---------- Frame ------------------------------------------------------ */
+
+  .hero {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Phones: a band above the name. The core is drawn on a fixed canvas behind
+     the page; this box only tells it where to sit. */
+  .hero-stage {
+    height: clamp(170px, 28svh, 320px);
+  }
+
+  /* Short phones (iPhone SE and the like): a shorter band keeps the call to
+     action inside the visible area under Safari's toolbars. */
+  @media (max-height: 760px) {
+    .hero-stage {
+      height: clamp(170px, 28svh, 240px);
+    }
+  }
+
+  /* Whenever the core is not drawn in the hero (still loading, no WebGL 2,
+     the GPU context gone, or the core away in the copilot window's dock),
+     HeroStageFallback draws the 2D note lattice in the band, which keeps its
+     height (collapsing it would shift the whole hero up). It is always
+     mounted and cross-fades with the core: out slowly as the core's canvas
+     fades in (1.4s, globals.css), back in quickly when the core leaves. Only
+     what CSS knows before paint collapses the band: forced colours here, no
+     JS in the layout's <noscript>. */
+  /* While the laptop copilot window floats over the stage, HeroStageFallback
+     sets --window-cut so the lattice keeps to the part left of the window
+     (padding, so the box it measures never moves); with too little room
+     there it fades out instead (core-stage.ts heroFallbackFit). */
+  .hero-fallback {
+    display: grid;
+    place-items: center;
+    height: 100%;
+    padding-block: 12px;
+    padding-inline-end: var(--window-cut, 0px);
+    pointer-events: none;
+    transition:
+      opacity 0.35s ease-out,
+      visibility 0s;
+  }
+
+  .hero-fallback[data-shown="false"] {
+    opacity: 0;
+    visibility: hidden;
+    transition:
+      opacity 0.9s ease-in-out,
+      visibility 0s 0.9s;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-fallback,
+    .hero-fallback[data-shown="false"] {
+      transition: none;
+    }
+  }
+
+  .hero-fallback .lattice {
+    width: min(100%, 22rem);
+    max-height: 100%;
+  }
+
+  /* The readout under the CTA already says what is lit, in words. */
+  .hero-fallback p {
+    display: none;
+  }
+
+  @media (forced-colors: active) {
+    .hero-stage {
+      display: none;
+    }
+  }
+
+  /* The core's layer (globals.css: fixed, full viewport, z 0 under the
+     page). While the core is docked in the copilot window or flying to or
+     from it, the layer goes above the window: window 40, core 41, launcher
+     42, the core's tooltip 43. Its canvas is transparent and ignores the
+     pointer, and the renderer draws only inside the dock's visible part, so
+     the window's own surface is the dock's background. */
+  .core-layer[data-over="true"] {
+    z-index: 41;
+  }
+
+  /* Over the window the core fades in on its own (its flight grows it out
+     of the launcher); the slow first-load fade would only blur that. */
+  .core-layer[data-over="true"] .core-canvas {
+    transition-duration: 0.2s;
+  }
+
+  .core-tip[data-over="true"] {
+    z-index: 43;
+  }
+
+  /* Near the right edge (the dock sits there) the tooltip opens to the
+     pointer's left, so it never runs off the screen. */
+  .core-tip[data-flip="true"] {
+    translate: calc(-100% - 12px) 16px;
+  }
+
+  .hero-copy {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 46rem;
+    margin-inline: auto;
+    /* Keeps type legible where it crosses the core. */
+    text-shadow:
+      0 1px 18px var(--ground),
+      0 0 2px var(--ground);
+  }
+
+  /* ---------- Lockup ----------------------------------------------------- */
+
+  /* Two scripts, one design (Eczar draws both): the Latin name and its
+     Devanagari twin. On phones the Latin line sits beside the badge without
+     wrapping. The name is ~8.94em wide (core-stage.ts LATIN_NAME_EM). */
+  .lockup {
+    position: relative;
+    z-index: 1;
+    font-family: var(--font-display);
+    font-size: min(64px, 7.8cqi);
+    text-shadow: 0 2px 24px var(--ground);
+  }
+
+  /* 630, not bold: Eczar gets heavy and rustic quickly. -0.01em is as tight
+     as it goes; tighter, the serifs in "Pratap" and "Rana" collide. */
+  .lockup-latin {
+    font-weight: 630;
+    line-height: 0.96;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+  }
+
+  /* A touch smaller and lighter than the Latin line, so the headline bar
+     matches the Latin stems in weight rather than out-shouting them. */
+  .lockup-deva {
+    /* Eczar's Devanagari file comes from the home route only (Hero.tsx sets
+       --font-eczar-deva on this element). It goes here, not in --font-display:
+       that is resolved on :root, where this variable does not exist. */
+    font-family: var(--font-eczar-deva), var(--font-display);
+    font-weight: 570;
+    font-size: 0.89em;
+    /* Eczar's ascent (1.143em) already sits the vowel signs ~0.15em below
+       this box's top, and at 1.12 the ु descends to its bottom edge, so
+       one value suits phones and laptops alike. */
+    line-height: 1.12;
+    white-space: nowrap;
+    /* Clears the Latin line's descenders (the p of "Pratap") off the
+       Devanagari headline bar; the Latin line stays tight. */
+    margin-top: 0.08em;
+    /* A second script in the night's indigo, not a disabled grey. Contrast
+       in both themes: palette.test.ts. */
+    color: color-mix(in oklab, var(--ink) 62%, var(--scene-edge));
+  }
+
+  /* Role and current employer, right under the name: what a recruiter
+     screens on first. Ink, not muted. One sentence ("AI/ML Engineer at
+     Kendriya Hindi Sansthan, Agra", the resume title and the city), no
+     separator glyph; on narrow phones it wraps like any sentence. */
+  .hero-role {
+    /* +5px: the Devanagari line's descending vowel signs (the ु of भानु)
+       would otherwise crowd the role line. */
+    margin-top: calc(0.5rem + 5px);
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 1.35;
+    text-wrap: balance;
+    color: var(--ink);
+  }
+
+  .hero-role-title {
+    font-weight: 650;
+  }
+
+  @container page (min-width: 30rem) {
+    .hero-role {
+      font-size: 17px;
+    }
+  }
+
+  .hero-statement {
+    margin-top: 1rem;
+    max-width: 40rem;
+    font-size: 19px;
+    font-weight: 500;
+    line-height: 1.32;
+    text-wrap: pretty;
+  }
+
+  @container page (min-width: 30rem) {
+    .hero-statement {
+      font-size: 21px;
+    }
+  }
+
+  @container page (min-width: 44rem) {
+    .hero-statement {
+      font-size: 23px;
+    }
+  }
+
+  /* ---------- Call to action -------------------------------------------- */
+
+  .hero-cta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-top: 1.25rem;
+    text-shadow: none;
+  }
+
+  .hero-cta-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 52px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    flex: 1 1 auto;
+    max-width: 18rem;
+    gap: 10px;
+    padding-inline: 16px 20px;
+    background: var(--ink);
+    color: var(--ground);
+    cursor: pointer;
+    transition:
+      background-color 0.15s ease-out,
+      transform 0.15s ease-out;
+  }
+
+  @media (hover: hover) {
+    .hero-cta-primary:hover {
+      background: color-mix(in oklab, var(--ink) 88%, var(--ground));
+    }
+  }
+
+  .hero-cta-primary:active {
+    transform: scale(0.97);
+  }
+
+  /* The mark on an ink button: the brighter scene accent for lit cells (the
+     text accent is too dark on ink in the light theme), unlit outlines half
+     way between ink and ground. */
+  .hero-cta-glyph {
+    flex: none;
+    --accent: var(--scene-accent);
+  }
+
+  .hero-cta-glyph .hex-glyph-cell {
+    stroke: color-mix(in oklab, var(--ground) 45%, var(--ink));
+    transition:
+      fill 0.3s ease-out,
+      stroke 0.3s ease-out;
+  }
+
+  .hero-cta-glyph .hex-glyph-cell[data-on="true"] {
+    stroke: var(--accent);
+  }
+
+  @media (forced-colors: active) {
+    .hero-cta-primary {
+      border: 1px solid ButtonText;
+    }
+
+    .hero-cta-glyph .hex-glyph-cell {
+      stroke: ButtonText;
+    }
+
+    .hero-cta-glyph .hex-glyph-cell[data-on="true"] {
+      fill: ButtonText;
+    }
+  }
+
+  /* ---------- Live starter (readout) ------------------------------------ */
+
+  /* What the core is lighting, and why; at rest a one-tap starter question.
+     A fixed height (in lines) so the demo changing question never moves what
+     is below it. */
+  .hero-live {
+    --live-fs: 15px;
+    --live-lh: 21px;
+    --lines: 2;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-top: 0.625rem;
+  }
+
+  .hero-live-line {
+    display: flex;
+    flex: 1;
+    align-items: flex-start;
+    gap: 0.6rem;
+    min-width: 0;
+    height: max(44px, calc(var(--lines) * var(--live-lh)));
+    padding-top: max(0px, calc((44px - var(--lines) * var(--live-lh)) / 2));
+    overflow: hidden;
+    font-size: var(--live-fs);
+    line-height: var(--live-lh);
+    text-align: left;
+  }
+
+  .hero-live-ask {
+    cursor: pointer;
+    border-radius: 6px;
+  }
+
+  .hero-live-line :lang(hi) {
+    line-height: inherit;
+  }
+
+  .hero-live-text {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: var(--lines);
+    line-clamp: var(--lines);
+    overflow: hidden;
+  }
+
+  /* The starter's demo question changes by rolling: the new line slides up
+     into place fully opaque while the old one slides out above it, both
+     clipped to the starter's lines and moving together (same distance and
+     easing), so they never overlap. The old line is gone (opacity 0) within
+     the first ~80ms, while the new one is still mostly below the clip: two
+     questions are never both legible, and the starter never stands blank. */
+  .hero-live-roll {
+    display: grid;
+    flex: 1;
+    min-width: 0;
+    height: calc(var(--lines) * var(--live-lh));
+    overflow: hidden;
+  }
+
+  /* Top-aligned at its own height (not stretched to the cell), so a short
+     question still sits on the first line. */
+  .hero-live-roll > .hero-live-text {
+    grid-area: 1 / 1;
+    align-self: start;
+    min-width: 0;
+  }
+
+  .hero-live-text[data-roll="in"] {
+    animation: live-roll-in 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+
+  /* Hidden unless its animation runs, so if it never does (motion off, an
+     animation blocked) the old line cannot sit on top of the new one. */
+  .hero-live-text[data-roll="out"] {
+    visibility: hidden;
+    animation: live-roll-out 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-live-text[data-roll] {
+      animation: none;
+    }
+  }
+
+  /* The starter: the question takes the clamp (and its ellipsis), the note
+     count sits beside its last line and never truncates, so the starter
+     always reads as a retrieval ("reads 6 of 26 notes"). */
+  .hero-live-ask .hero-live-text {
+    display: flex;
+    flex: 1;
+    align-items: flex-end;
+    column-gap: 0.35em;
+    min-width: 0;
+    -webkit-line-clamp: none;
+    line-clamp: none;
+  }
+
+  .hero-live-ask-q {
+    display: -webkit-box;
+    flex: 0 1 auto;
+    min-width: 0;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: var(--lines);
+    line-clamp: var(--lines);
+    overflow: hidden;
+  }
+
+  .hero-live-ask .hero-live-count {
+    flex: none;
+    white-space: nowrap;
+  }
+
+  .hero-live-label {
+    font-weight: 600;
+  }
+
+  .hero-live-q {
+    text-decoration-line: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+    text-decoration-color: transparent;
+    transition: text-decoration-color 0.15s ease-out;
+  }
+
+  @media (hover: hover) {
+    .hero-live-ask:hover .hero-live-q {
+      text-decoration-color: var(--control);
+    }
+  }
+
+  .hero-live-count {
+    color: var(--muted);
+  }
+
+  /* The pause control lines up with the starter's first line. */
+  .hero-live-pause {
+    margin-top: calc(
+      max(0px, (44px - var(--lines) * var(--live-lh)) / 2) + var(--live-lh) / 2 -
+        22px
+    );
+  }
+
+  .hero-live-mark {
+    flex: none;
+    width: 0.8em;
+    height: 0.8em;
+    margin-top: calc((var(--live-lh) - 0.8em) / 2);
+    clip-path: polygon(25% 6%, 75% 6%, 100% 50%, 75% 94%, 25% 94%, 0 50%);
+    background: var(--control);
+  }
+
+  .hero-live-mark[data-lit="true"] {
+    background: var(--accent);
+    animation: live-pulse 2.4s ease-in-out infinite;
+  }
+
+  .hero-live-mark[data-still="true"] {
+    animation: none;
+  }
+
+  @media (forced-colors: active) {
+    .hero-live-mark {
+      background: CanvasText;
+      forced-color-adjust: none;
+    }
+  }
+
+  @keyframes live-pulse {
+    50% {
+      opacity: 0.45;
+    }
+  }
+
+  /* The roll travels one starter height: in from just below the clip, out
+     to just above it. The incoming line is opaque throughout; the outgoing
+     one fades out over the first 16% of the roll (eased, so most of it in
+     the first few frames) and travels on unseen, in step with the new one. */
+  @keyframes live-roll-in {
+    from {
+      translate: 0 calc(var(--lines) * var(--live-lh));
+    }
+  }
+
+  @keyframes live-roll-out {
+    from {
+      visibility: visible;
+      opacity: 1;
+      translate: 0 0;
+    }
+    16% {
+      visibility: visible;
+      opacity: 0;
+    }
+    to {
+      visibility: visible;
+      opacity: 0;
+      translate: 0 calc(-1 * var(--lines) * var(--live-lh));
+    }
+  }
+
+  /* ---------- Links ----------------------------------------------------- */
+
+  .hero-links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 1.25rem;
+    margin-top: 0.75rem;
+    font-size: 16px;
+  }
+
+  .hero-link-email {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  /* ---------- Split layout (page container >= 56rem) --------------------- */
+
+  @container page (min-width: 56rem) {
+    .hero {
+      /* hero.css and core-stage.ts share these (heroInset, heroCopyWidth).
+         The inset is the site frame's left edge (--frame-inset, globals.css),
+         so the name lines up with the header's mark and the section titles. */
+      --copy-w: clamp(26rem, 38cqi, 34rem);
+      min-height: calc(100svh - 4.75rem);
+      justify-content: center;
+      padding-block: 1.5rem 2.5rem;
+    }
+
+    /* The whole hero is the stage; the core takes the space right of the copy
+       and bleeds to the viewport's edge on the canvas. */
+    .hero-stage {
+      position: absolute;
+      inset: 0;
+      height: auto;
+    }
+
+    .hero-copy {
+      width: var(--copy-w);
+      max-width: none;
+      margin-inline: var(--frame-inset) 0;
+    }
+
+    /* The deliberate overlap: the name is sized past the column (by about
+       12%, never more than 18%, see core-stage.test.ts) and sits in front of
+       the core's left prisms; the core keeps its cluster clear of the column
+       itself. Mirrored in core-stage.ts heroLockupPx. */
+    .lockup {
+      font-size: clamp(52px, 4.8cqi, 68px);
+    }
+
+    .hero-role {
+      margin-top: calc(0.625rem + 5px);
+      font-size: clamp(17px, 1.4cqi, 20px);
+    }
+
+    /* Without the core the whole hero is still the stage: the 2D lattice
+       takes the space right of the copy column. */
+    .hero-fallback {
+      position: absolute;
+      inset-block: 0;
+      right: var(--frame-inset);
+      left: calc(var(--frame-inset) + var(--copy-w) + 4rem);
+      height: auto;
+    }
+
+    .hero-fallback .lattice {
+      width: min(100%, 34rem);
+    }
+
+    .hero-statement {
+      margin-top: 1.25rem;
+      max-width: none;
+      font-size: clamp(20px, 1.8cqi, 26px);
+      line-height: 1.28;
+    }
+
+    .hero-cta {
+      margin-top: 1.5rem;
+      gap: 12px;
+    }
+
+    .hero-cta-primary {
+      font-size: 17px;
+      flex: none;
+      max-width: none;
+      padding-inline: 18px 22px;
+    }
+
+    .hero-live {
+      --live-fs: 16px;
+      --live-lh: 22.4px;
+      margin-top: 0.75rem;
+    }
+
+    .hero-links {
+      font-size: 17px;
+    }
+
+    /* Short laptop screens: the starter keeps one line and the email moves
+       out of the link row (the footer's contact line still has it), so the
+       call to action stays above the fold. */
+    @media (max-height: 799px) {
+      .hero-live {
+        --lines: 1;
+      }
+
+      /* One line: the base starter rules already ellipsise the question
+         and keep the note count whole. */
+
+      /* The pause control keeps only "Pause" (never icon-only; its name
+         stays "Pause motion"), giving the question that width. */
+      .hero-live-pause-more {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
+
+      .hero-link-email {
+        display: none;
+      }
+    }
+  }
+}
+
+/* ---------- Portrait badge (plan add-on P1) ------------------------------
+   His whole photo in a hex (HexPortrait fit="full"): trust, not a second
+   hero object, so it never moves (a 2px lift on hover only).
+   Phones: beside the name (badge | lockup), so it costs no height and reads
+   as one identity row under the core. The Latin line is ~8.94em wide: at
+   7.8cqi it fits beside the badge down to a 320px viewport (core-stage.ts
+   heroPhoneLockupPx and heroPhoneBadgePx; core-stage.test.ts checks it).
+   Laptops: above the name, large. Beside it would push the Latin name over
+   the core and break the lockup's 18% overhang rule (core-stage.test.ts).
+   Fold budget (plan-v6): the CTA stays above the fold at 1366x768; short
+   laptop windows (≤760px) get a 128px badge. */
+@layer components {
+  .hero-badge {
+    --hex-portrait-w: 72px;
+    width: fit-content;
+    margin-bottom: 10px;
+    line-height: 0;
+    text-shadow: none;
+  }
+
+  @media (hover: hover) and (prefers-reduced-motion: no-preference) {
+    .hero-badge {
+      transition: translate 0.18s ease-out;
+    }
+
+    .hero-badge:hover {
+      translate: 0 -2px;
+    }
+  }
+
+  @container page (max-width: 55.99rem) {
+    .hero-copy {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      column-gap: 12px;
+    }
+
+    .hero-copy > :not(.hero-badge, .lockup) {
+      grid-column: 1 / -1;
+    }
+
+    /* The whole photo sits inside the hex (62% of its width), so the badge is
+       larger than a face crop would need: about 86px at 390 wide, 72px at
+       320. The lockup still fits beside it at 320 (badge + gap + ~8.94em). */
+    .hero-badge {
+      --hex-portrait-w: clamp(72px, 24cqi, 104px);
+      align-self: center;
+      margin-bottom: 0;
+    }
+
+    .lockup {
+      align-self: center;
+    }
+
+    /* Phones and tablets: beside the question, the nowrap count took a
+       full-height column (~148px of ~300 at 375 wide) and squeezed the
+       question to two words. Here the question has the full width and two
+       lines, and the count its own line under it. Still a fixed height. */
+    .hero-live {
+      --lines: 3;
+    }
+
+    .hero-live-ask .hero-live-text {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .hero-live-ask-q {
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+    }
+
+    /* Short phones (375x667: 548px visible under Safari's bars): the stack
+       tightens to keep the CTA in view. */
+    @media (max-height: 760px) {
+      .hero-role {
+        font-size: 15px;
+      }
+
+      .hero-statement {
+        margin-top: 0.75rem;
+        font-size: 18px;
+        line-height: 1.3;
+      }
+
+      .hero-cta {
+        margin-top: 1rem;
+      }
+    }
+  }
+
+  /* Laptops: a head-and-shoulders portrait above the name (the photo fills
+     the hex, so it reads clearly at this size). Sized by width and height so
+     the CTA keeps its fold budget: ~173px at 1440x900, ~161px at 1366x768,
+     capped at 184px; short windows get a smaller one. */
+  @container page (min-width: 56rem) {
+    .hero-badge {
+      --hex-portrait-w: clamp(140px, min(12vw, 21svh), 184px);
+      margin-bottom: 14px;
+    }
+
+    @media (max-height: 760px) {
+      .hero-badge {
+        --hex-portrait-w: 128px;
+        margin-bottom: 8px;
+      }
+    }
+  }
+}

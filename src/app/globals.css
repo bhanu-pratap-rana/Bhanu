@@ -1,111 +1,609 @@
 @import "tailwindcss";
+@import "./hero.css";
+@import "./copilot-window.css";
 
-:root {
-  --background: #f8f7f4;
-  --foreground: #171717;
-
-  /* Semantic design tokens */
-  --surface: #ffffff;
-  --surface-muted: #fbfaf8;
-  --border-subtle: #e7e5e4; /* stone-200 */
-  --ink: #0c0a09; /* stone-950 */
-  --ink-muted: #57534e; /* stone-600 */
-}
-
+/* Colour is by role. `accent` has one meaning on this site: the copilot
+   touched this (a note it would pull, pulled, or cited). Links and ordinary
+   actions are ink, so the accent never competes with itself. */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-ground: var(--ground);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --color-wash: var(--wash);
+  --color-hairline: var(--hairline);
+  --color-control: var(--control);
+  --color-danger: var(--danger);
+  /* Body and UI: Schibsted Grotesk (Latin), with Hind for any Hindi inside
+     it. Display: Eczar, which carries both scripts itself; Hind is behind
+     it only for a glyph Eczar lacks. Fonts from layout.tsx (next/font).
+     The layout loads Eczar's Latin file only; the hero's Hindi name adds
+     the Devanagari one on its own element (hero.css .lockup-deva), so
+     elsewhere Hindi in display text is set in Hind. */
+  --font-sans:
+    var(--font-schibsted), var(--font-hind), ui-sans-serif, system-ui,
+    sans-serif;
+  --font-display: var(--font-eczar), var(--font-hind), ui-serif, Georgia, serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+@layer base {
+  /* Night is the default: the 3D core reads best on it. Light is a choice
+     the visitor makes with the toggle, and is remembered. */
+  :root {
+    color-scheme: dark;
+    --ground: #060a1c;
+    --surface: #0e1534;
+    --ink: #eef2ff;
+    --muted: #a9b3d9;
+    /* Marigold: the copilot touched this. */
+    --accent: #ffb21f;
+    --on-accent: #1a1203;
+    --hairline: #1f2a5c;
+    --control: #6271a8;
+    --danger: #ff8a70;
+    --wash: color-mix(in oklab, var(--accent) 10%, var(--surface));
+    --scene-body: #111a4a;
+    /* Electric indigo edges, cyan for hover and section. */
+    --scene-edge: #5b6cff;
+    --scene-mist: #7fe6ff;
+    --scene-add: 1;
+    /* A lit prism top: pale-gold centre -> marigold -> saffron rim; shafts
+       rise from the rim. The rim is orange enough to stay orange once mixed
+       (src/lib/core-shading.ts holds the maths and its tests). */
+    --scene-accent: #ffa51f;
+    --scene-hot: #ffd45e;
+    --scene-rim: #ff8a1f;
+    /* A cool aurora, at low strength, so the marigold pops. */
+    --backdrop:
+      radial-gradient(70vw 60vh at 72% 18%, color-mix(in srgb, #2b2fa8 55%, transparent) 0%, transparent 66%),
+      radial-gradient(55vw 45vh at 8% 92%, color-mix(in srgb, #0b5a73 55%, transparent) 0%, transparent 70%),
+      radial-gradient(40vw 35vh at 95% 85%, color-mix(in srgb, #4a1d73 45%, transparent) 0%, transparent 72%);
+  }
+
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --ground: #eef1fb;
+    --surface: #ffffff;
+    --ink: #0b1233;
+    --muted: #464f70;
+    --accent: #a15c00;
+    --on-accent: #ffffff;
+    --hairline: #d4dae8;
+    --control: #7a85a0;
+    --danger: #a8321c;
+    --wash: color-mix(in oklab, var(--accent) 8%, var(--surface));
+    --scene-body: #dfe4fb;
+    --scene-edge: #4b5bd6;
+    --scene-mist: #0a7ea4;
+    --scene-add: 0;
+    /* Text accent stays dark for contrast; the light in the core is brighter. */
+    --scene-accent: #ff9a1a;
+    --scene-hot: #ffcf5c;
+    --scene-rim: #e8730c;
+    --backdrop:
+      radial-gradient(70vw 60vh at 72% 18%, #d9dcff 0%, transparent 66%),
+      radial-gradient(55vw 45vh at 8% 92%, #d3eef6 0%, transparent 70%);
+  }
+
+  html {
+    background: var(--ground);
+    scroll-padding-top: 1.5rem;
+    scroll-padding-bottom: 6rem;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--ground);
+    position: relative;
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 17px;
+    line-height: 1.55;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* The night sky behind everything, under the 3D core. Body is isolated
+     so this layer sits above its opaque background, not under it. */
+  body {
+    isolation: isolate;
+  }
+
+  /* Full strength behind the hero; it settles to 60% over the first
+     viewport of scroll. Scroll-linked in CSS (no listener); where scroll
+     timelines are unsupported it simply stays at full strength. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: var(--backdrop);
+    pointer-events: none;
+  }
+
+  @supports (animation-timeline: scroll()) {
+    body::before {
+      /* Longhands: the shorthand cannot carry the timeline, and a minifier
+         that folds them into one breaks it. */
+      animation-name: backdrop-settle;
+      animation-timing-function: linear;
+      animation-fill-mode: both;
+      animation-timeline: scroll(root block);
+      animation-range: 0 100vh;
+    }
+  }
+
+  @keyframes backdrop-settle {
+    to {
+      opacity: 0.6;
+    }
+  }
+
+  /* Devanagari needs more leading than Latin, and is never tracked or
+     upper-cased: either would break the headline bar that joins its letters. */
+  :lang(hi) {
+    line-height: 1.75;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  a,
+  button,
+  textarea,
+  summary {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--accent) 35%, transparent);
+  }
+
+  html:has(dialog.copilot-dialog[open]) {
+    overflow: hidden;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-delay: 0s !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      transition-delay: 0s !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
 
-button,
-a,
-textarea {
-  -webkit-tap-highlight-color: transparent;
+/* Ordinary link: ink with a quiet underline that firms up on hover. */
+@utility link {
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--control);
+  @media (hover: hover) {
+    &:hover {
+      text-decoration-color: var(--ink);
+    }
+  }
 }
 
-:focus-visible {
-  outline: 2px solid #0c0a09;
-  outline-offset: 2px;
-  border-radius: 6px;
+/* Minimum comfortable touch target. Text links only need the height; icon-only
+   buttons add the width too. */
+@utility tap {
+  min-height: 44px;
 }
 
-@keyframes copilot-caret {
-  0%,
-  100% {
+@utility tap-square {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Display face for titles (card and page h1/h3). Eczar darkens fast: 570
+   keeps a two-line card title from clotting; tracking stays at -0.01em or
+   looser, tighter and its serifs touch. */
+@utility display {
+  font-family: var(--font-display);
+  font-weight: 570;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+}
+
+@layer components {
+  /* ---------- Page frame ------------------------------------------------ */
+
+  .shell {
+    position: relative;
+    z-index: 1;
+    min-height: 100dvh;
+  }
+
+  .page {
+    min-width: 0;
+    /* The hero lays itself out by this box's width (hero.css). */
+    container: page / inline-size;
+    padding-inline: max(1rem, env(safe-area-inset-left))
+      max(1rem, env(safe-area-inset-right));
+    /* The frame's left edge inside the page box, shared by the header, the
+       hero copy and every section (laptops, container >= 56rem). The cqi
+       units resolve where it is used, against this container. Mirrored in
+       src/lib/core-stage.ts (heroInset). */
+    --frame-inset: calc(
+      max(0px, (100cqi - 84rem) / 2) + clamp(1.5rem, 5cqi, 5rem)
+    );
+  }
+
+  @media (min-width: 40rem) and (max-width: 63.99rem) {
+    .page {
+      padding-inline: 2rem;
+    }
+  }
+
+  /* .measure is the reading column; .frame (the header) spans the frame. */
+  .measure,
+  .frame {
+    width: 100%;
+    max-width: 46rem;
+    margin-inline: auto;
+  }
+
+  /* Laptops: one left edge for the header, the hero copy, the section titles
+     and what is under them. The frame is 84rem wide; the header fills it, and
+     the reading column is left-aligned in it, 64rem at most, with prose kept
+     to 46rem. */
+  @container page (min-width: 56rem) {
+    .frame,
+    .measure {
+      width: auto;
+      max-width: none;
+      margin-inline: var(--frame-inset);
+    }
+
+    .measure {
+      max-width: 64rem;
+      margin-right: auto;
+    }
+
+    .measure p {
+      max-width: 46rem;
+    }
+  }
+
+  .section {
+    padding-top: 4rem;
+    scroll-margin-top: 1rem;
+  }
+
+  @media (min-width: 64rem) {
+    .section {
+      padding-top: 6rem;
+    }
+  }
+
+  .section-title {
+    font-size: clamp(32px, 6vw, 46px);
+    font-family: var(--font-display);
+    font-weight: 590;
+    line-height: 1;
+    letter-spacing: -0.01em;
+    margin-bottom: 1.75rem;
+  }
+
+  /* A section reached from the copilot or the nav announces itself once,
+     then settles. In-page links focus their target (it has tabindex="-1"),
+     which is what the client router can do; :target covers direct loads. */
+  .section:target,
+  li[id]:target,
+  .section:focus,
+  li[id]:focus,
+  p[id]:focus {
+    animation: target-flash 1.6s ease-out 1;
+    outline: none;
+  }
+
+  @keyframes target-flash {
+    from {
+      background: color-mix(in oklab, var(--accent) 16%, transparent);
+      box-shadow: 0 0 0 0.75rem
+        color-mix(in oklab, var(--accent) 16%, transparent);
+    }
+    to {
+      background: transparent;
+      box-shadow: 0 0 0 0.75rem transparent;
+    }
+  }
+
+  /* ---------- 3D core ---------------------------------------------------- */
+
+  /* 100lvh: the layer keeps one height while phone toolbars slide, so the
+     drawing buffer is not reallocated mid-scroll. */
+  .core-layer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    height: 100lvh;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  @media (forced-colors: active) {
+    .core-layer,
+    .core-tip {
+      display: none;
+    }
+  }
+
+  .core-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    transition: opacity 1.4s ease-out;
+  }
+
+  .core-canvas[data-ready="true"] {
     opacity: 1;
   }
-  50% {
-    opacity: 0;
+
+  .core-hover [data-core-hit] {
+    cursor: pointer;
+  }
+
+  .core-tip {
+    position: fixed;
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    translate: 16px 16px;
+    max-width: 18rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--hairline);
+    border-radius: 8px;
+    background: color-mix(in oklab, var(--surface) 90%, transparent);
+    font-size: 14px;
+    line-height: 1.35;
+    pointer-events: none;
+  }
+
+  /* ---------- Copilot --------------------------------------------------- */
+
+  dialog.copilot-dialog {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: var(--surface);
+    color: var(--ink);
+  }
+
+  dialog.copilot-dialog:not([open]) {
+    display: none;
+  }
+
+  dialog.copilot-dialog[open] {
+    display: flex;
+    animation: sheet-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  @keyframes sheet-in {
+    from {
+      opacity: 0;
+      translate: 0 1.5rem;
+    }
+  }
+
+  .copilot-panel {
+    display: grid;
+    /* The thread never collapses to nothing (landscape phones, 200% zoom);
+       the host scrolls instead. */
+    grid-template-rows: auto minmax(12rem, 1fr) auto;
+    width: 100%;
+    min-height: 0;
+    font-size: 16px;
+  }
+
+  /* On tablets the dialog would otherwise stretch the text edge to edge. */
+  dialog.copilot-dialog .copilot-panel {
+    max-width: 36rem;
+    margin-inline: auto;
+  }
+
+  .thread {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--hairline) transparent;
+  }
+
+  /* The one moving rule on the site: it runs while an answer is on its way. */
+  .stream-bar {
+    height: 2px;
+    background: var(--hairline);
+    overflow: hidden;
+  }
+
+  .stream-bar[data-active="true"]::after {
+    content: "";
+    display: block;
+    height: 100%;
+    width: 40%;
+    background: var(--accent);
+    animation: stream-run 1.1s ease-in-out infinite;
+  }
+
+  @keyframes stream-run {
+    from {
+      translate: -100% 0;
+    }
+    to {
+      translate: 250% 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .stream-bar[data-active="true"]::after {
+      width: 100%;
+      animation: none;
+    }
+  }
+
+  .caret {
+    display: inline-block;
+    width: 2px;
+    height: 1em;
+    margin-left: 2px;
+    vertical-align: text-bottom;
+    background: var(--accent);
+    animation: caret-blink 1s steps(2, start) infinite;
+  }
+
+  @keyframes caret-blink {
+    50% {
+      opacity: 0;
+    }
+  }
+
+  /* ---------- Index lattice --------------------------------------------- */
+
+  .lattice {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 30dvh;
+    overflow: visible;
+  }
+
+  .cell {
+    fill: transparent;
+    stroke: var(--control);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+    transition:
+      fill 0.15s ease-out,
+      stroke 0.15s ease-out;
+  }
+
+  .cell-hit {
+    cursor: pointer;
+  }
+
+  /* Three steps, not a ramp: dim marigold (accent over the surface) so a
+     partial match reads as a lesser cited cell, not a khaki mid-tone; the
+     accent stroke keeps a faint match visible outdoors. */
+  .cell[data-level="1"] {
+    fill: color-mix(in oklab, var(--accent) 18%, var(--surface));
+  }
+  .cell[data-level="2"] {
+    fill: color-mix(in oklab, var(--accent) 30%, var(--surface));
+  }
+  .cell[data-level="3"] {
+    fill: color-mix(in oklab, var(--accent) 45%, var(--surface));
+  }
+
+  .cell[data-level="1"],
+  .cell[data-level="2"],
+  .cell[data-level="3"] {
+    stroke: var(--accent);
+  }
+
+  .cell[data-pulled="true"] {
+    stroke: var(--accent);
+    stroke-width: 2;
+  }
+
+  .cell[data-cited="true"] {
+    fill: var(--accent);
+    stroke: var(--accent);
+  }
+
+  .cell[data-selected="true"] {
+    stroke: var(--ink);
+    stroke-width: 2.5;
+  }
+
+  .cell-num {
+    fill: var(--on-accent);
+    font-size: 13px;
+    font-weight: 600;
+    text-anchor: middle;
+    dominant-baseline: central;
+    pointer-events: none;
+  }
+
+  @media (hover: hover) {
+    .cell-hit:hover .cell {
+      stroke: var(--ink);
+      stroke-width: 2;
+    }
+  }
+
+  @media (forced-colors: active) {
+    .cell {
+      stroke: CanvasText;
+    }
+    .cell[data-level="1"],
+    .cell[data-level="2"],
+    .cell[data-level="3"],
+    .cell[data-cited="true"] {
+      fill: Highlight;
+    }
+    .cell-num {
+      fill: HighlightText;
+    }
+  }
+
+  /* Citation marker inside an answer: the same mark as a cited cell. */
+  .cite {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.3rem;
+    height: 1.3rem;
+    margin-inline: 2px;
+    padding-inline: 0.25rem;
+    border-radius: 5px;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1;
+    vertical-align: 0.1em;
+    /* Always the UI face, even inside a display title. */
+    font-family: var(--font-sans);
+    letter-spacing: 0;
+  }
+
+  button.cite {
+    cursor: pointer;
   }
 }
 
-@keyframes message-enter {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+/* Theme toggle: show the icon for the theme you would switch to. Night is
+   the default, so the sun shows unless the visitor chose light. */
+.theme-icon-light {
+  display: none;
 }
-
-.message-enter {
-  animation: message-enter 0.22s ease-out both;
+:root[data-theme="light"] .theme-icon-light {
+  display: block;
 }
-
-.copilot-caret {
-  display: inline-block;
-  width: 2px;
-  height: 1em;
-  margin-left: 1px;
-  vertical-align: text-bottom;
-  background: currentColor;
-  animation: copilot-caret 1s steps(2, start) infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-}
-
-.chat-scroll {
-  scrollbar-color: #d6d3d1 transparent;
-  scrollbar-width: thin;
-}
-
-.chat-scroll::-webkit-scrollbar {
-  height: 10px;
-  width: 10px;
-}
-
-.chat-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.chat-scroll::-webkit-scrollbar-thumb {
-  background: #d6d3d1;
-  border: 3px solid transparent;
-  border-radius: 999px;
-  background-clip: content-box;
-}
-
-.chat-scroll::-webkit-scrollbar-thumb:hover {
-  background: #a8a29e;
-  border: 3px solid transparent;
-  background-clip: content-box;
+:root[data-theme="light"] .theme-icon-dark {
+  display: none;
 }

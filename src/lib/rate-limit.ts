@@ -38,16 +38,20 @@ function sweep(now: number) {
   }
 }
 
-export function rateLimit(key: string, now = Date.now()): RateLimitResult {
+export function rateLimit(
+  key: string,
+  now = Date.now(),
+  max = MAX_REQUESTS,
+): RateLimitResult {
   const existing = buckets.get(key);
 
   if (!existing || now >= existing.resetAt) {
     sweep(now);
     buckets.set(key, { count: 1, resetAt: now + WINDOW_MS });
-    return { allowed: true, remaining: MAX_REQUESTS - 1, retryAfterSeconds: 0 };
+    return { allowed: true, remaining: max - 1, retryAfterSeconds: 0 };
   }
 
-  if (existing.count >= MAX_REQUESTS) {
+  if (existing.count >= max) {
     return {
       allowed: false,
       remaining: 0,
@@ -58,18 +62,57 @@ export function rateLimit(key: string, now = Date.now()): RateLimitResult {
   existing.count += 1;
   return {
     allowed: true,
-    remaining: MAX_REQUESTS - existing.count,
+    remaining: max - existing.count,
     retryAfterSeconds: 0,
   };
 }
 
-export function clientKey(request: Request): string {
-  // Prefer the edge-injected header (Vercel overwrites this with the real
-  // client IP and it cannot be spoofed by the caller). Fall back to the
-  // leftmost X-Forwarded-For only for local/dev where no trusted proxy exists.
-  const trusted = request.headers.get("x-vercel-forwarded-for");
-  if (trusted) return trusted.split(",")[0]?.trim() || "anonymous";
+type ProxyEnv = Record<string, string | undefined>;
 
-  const forwarded = request.headers.get("x-forwarded-for");
-  return forwarded?.split(",")[0]?.trim() || "anonymous";
+function readEnv(): ProxyEnv {
+  return typeof process === "undefined" ? {} : process.env;
+}
+
+/** Running on Vercel. Its edge overwrites the forwarding headers. */
+export function onVercel(env: ProxyEnv = readEnv()): boolean {
+  return Boolean(env.VERCEL);
+}
+
+/**
+ * Whether X-Forwarded-For / X-Forwarded-Host were set by a proxy in front of
+ * this server rather than by the caller: on Vercel, or when the operator says
+ * so with TRUST_PROXY=1 (a reverse proxy that overwrites or appends them).
+ */
+export function trustsProxy(env: ProxyEnv = readEnv()): boolean {
+  return onVercel(env) || env.TRUST_PROXY === "1";
+}
+
+/** Every caller shares this bucket when no proxy header can be trusted. */
+export const DIRECT_CLIENT_KEY = "direct";
+
+export function clientKey(
+  request: Request,
+  options: { onVercel?: boolean; trustProxy?: boolean } = {},
+): string {
+  const vercel = options.onVercel ?? onVercel();
+  const trusted = options.trustProxy ?? (vercel || trustsProxy());
+  const first = (value: string | null) =>
+    value?.split(",")[0]?.trim() || undefined;
+  const last = (value: string | null) =>
+    value?.split(",").at(-1)?.trim() || undefined;
+
+  // On Vercel the edge overwrites both headers with the real client IP.
+  if (vercel) {
+    return (
+      first(request.headers.get("x-vercel-forwarded-for")) ??
+      first(request.headers.get("x-forwarded-for")) ??
+      "anonymous"
+    );
+  }
+  // With no trusted proxy the header is whatever the caller typed, and a fresh
+  // value per request would be a fresh bucket per request: everyone shares one.
+  if (!trusted) return DIRECT_CLIENT_KEY;
+  // Behind a trusted proxy the rightmost hop is the one it appended, so it is
+  // the only part worth trusting.
+  return last(request.headers.get("x-forwarded-for")) ?? "anonymous";
 }
