@@ -39,9 +39,9 @@ describe("plain 'resume' spelling keeps retrieval working", () => {
 describe("currentRole: the hero's and the link card's role line", () => {
   it("is the resume title at the current employer, without the ministry", () => {
     expect(currentRole).toEqual({
-      title: "AI/ML Engineer",
+      title: "Technical Assistant / Computer Assistant",
       org: "Kendriya Hindi Sansthan",
-      line: "AI/ML Engineer at Kendriya Hindi Sansthan",
+      line: "Technical Assistant / Computer Assistant at Kendriya Hindi Sansthan",
       city: "Agra",
     });
   });

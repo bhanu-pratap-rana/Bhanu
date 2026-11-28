@@ -111,7 +111,7 @@ export type ExperienceBullet = { text: string; project?: Project["slug"] };
 export const experience: ExperienceEntry[] = [
   {
     id: "experience-khs",
-    title: "Research Assistant (Technical) — AI/ML Engineer",
+    title: "Technical Assistant / Computer Assistant",
     org: "Kendriya Hindi Sansthan (Ministry of Education)",
     period: "Mar 2025 – Present",
     type: "Full-time",
@@ -200,8 +200,8 @@ export const experience: ExperienceEntry[] = [
 /**
  * The role line the hero and the link-preview card show: the resume title at
  * the current employer (the first role still running, in resume order). The
- * title is the part after the em dash ("Research Assistant (Technical) —
- * AI/ML Engineer" gives "AI/ML Engineer"); the employer drops its trailing
+ * title is the part after an em dash when there is one ("A — B" gives
+ * "B"), else the whole title; the employer drops its trailing
  * parenthetical (the ministry), so the line fits one short sentence.
  */
 export const currentRole: { title: string; org: string; line: string; city?: string } = (() => {
@@ -587,7 +587,7 @@ const notes: KnowledgeItem[] = [
     summary:
       "Applied AI Engineer in Agra working on generative AI, RAG, AI agents, computer vision and Python backends, with a focus on Hindi and other Indian languages.",
     tags: ["Applied AI Engineer", "GenAI", "RAG", "AI Agents", "Computer Vision", "FastAPI", "Indic AI", "Hindi"],
-    body: `Bhanu Pratap Rana is an Applied AI Engineer based in Agra, Uttar Pradesh, India. He has worked in AI since July 2024: a machine learning internship at Bytical.ai (July to December 2024), part-time AI engineering at Testneo (December 2024 to February 2025), and a full-time role as Research Assistant (Technical) and AI/ML Engineer at Kendriya Hindi Sansthan, Ministry of Education, since March 2025. Since December 2025 he is also the part-time co-founder of Aura AI and Media. His resume describes this as 2+ years building AI systems across generative AI, RAG, AI agents, computer vision and Python backends (FastAPI, LangChain, Celery and Redis, PostgreSQL, Docker). His specialism is multilingual and Indic AI: an offline-first Hindi and Assamese learning app piloted with 570+ rural students, and a semantic search engine over 1,633 Hindi books. He has 2 publications (a book chapter and a journal article) and 2 conference presentations, one of which won a Best Paper Award. Spoken languages: English (professional proficiency) and Hindi (native).`,
+    body: `Bhanu Pratap Rana is an Applied AI Engineer based in Agra, Uttar Pradesh, India. He has worked in AI since July 2024: a machine learning internship at Bytical.ai (July to December 2024), part-time AI engineering at Testneo (December 2024 to February 2025), and a full-time role as Technical Assistant / Computer Assistant at Kendriya Hindi Sansthan, Ministry of Education, since March 2025. Since December 2025 he is also the part-time co-founder of Aura AI and Media. His resume describes this as 2+ years building AI systems across generative AI, RAG, AI agents, computer vision and Python backends (FastAPI, LangChain, Celery and Redis, PostgreSQL, Docker). His specialism is multilingual and Indic AI: an offline-first Hindi and Assamese learning app piloted with 570+ rural students, and a semantic search engine over 1,633 Hindi books. He has 2 publications (a book chapter and a journal article) and 2 conference presentations, one of which won a Best Paper Award. Spoken languages: English (professional proficiency) and Hindi (native).`,
     links: [
       { label: "Resume (PDF)", href: profile.resumePath },
       { label: "GitHub", href: profile.github },
@@ -749,11 +749,11 @@ const notes: KnowledgeItem[] = [
   {
     id: "khs-research-assistant",
     kind: "experience",
-    title: "Kendriya Hindi Sansthan — Research Assistant (Technical), AI/ML Engineer",
+    title: "Kendriya Hindi Sansthan — Technical Assistant / Computer Assistant",
     summary:
       "Current full-time role since March 2025 on an ICSSR-funded AI education project: built ATAL AI 2.0 and the Hindi Semantic Search engine, and led field research in Assam.",
-    tags: ["Kendriya Hindi Sansthan", "KHS", "Research Assistant", "AI/ML Engineer", "ICSSR", "ATAL AI", "Semantic Search", "Field Research", "Power BI", "Education"],
-    body: `Bhanu's current job: Research Assistant (Technical) and AI/ML Engineer at Kendriya Hindi Sansthan, Ministry of Education, in Agra. Full-time since March 2025, on the ICSSR-funded "AI Based Remedial Education Model" under ATAL AI — Vision Viksit Bharat @2047. There he architected and built ATAL AI 2.0, an offline-first learning PWA (Next.js 16, React 19, TypeScript, Supabase with pgvector). He built a multilingual Hindi Semantic Search engine over 1,633 books (MiniLM-L12-v2 embeddings in ChromaDB, LangChain LCEL RAG Q&A with Groq LLaMA, and a CrewAI multi-agent metadata pipeline). He led field research across 6 government schools in Assam covering 570+ students; his resume reports 50–65% student adoption in pilot comparisons against existing digital learning platforms. He built data pipelines and Power BI dashboards for stakeholder reporting, reviewed 22 research papers, and contributed to an edited book on AI-enabled education.`,
+    tags: ["Kendriya Hindi Sansthan", "KHS", "Technical Assistant", "Computer Assistant", "ICSSR", "ATAL AI", "Semantic Search", "Field Research", "Power BI", "Education"],
+    body: `Bhanu's current job: Technical Assistant / Computer Assistant at Kendriya Hindi Sansthan, Ministry of Education, in Agra. Full-time since March 2025, on the ICSSR-funded "AI Based Remedial Education Model" under ATAL AI — Vision Viksit Bharat @2047. There he architected and built ATAL AI 2.0, an offline-first learning PWA (Next.js 16, React 19, TypeScript, Supabase with pgvector). He built a multilingual Hindi Semantic Search engine over 1,633 books (MiniLM-L12-v2 embeddings in ChromaDB, LangChain LCEL RAG Q&A with Groq LLaMA, and a CrewAI multi-agent metadata pipeline). He led field research across 6 government schools in Assam covering 570+ students; his resume reports 50–65% student adoption in pilot comparisons against existing digital learning platforms. He built data pipelines and Power BI dashboards for stakeholder reporting, reviewed 22 research papers, and contributed to an edited book on AI-enabled education.`,
     links: [{ label: "ATAL AI 2.0 code", href: `${GITHUB}/ATAL-AI-2.0` }],
     anchor: "experience-khs",
     prompt: "What is his current job, and what has he built there?",
